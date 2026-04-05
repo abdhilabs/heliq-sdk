@@ -1,0 +1,150 @@
+//
+//  SubscriptionManager.swift
+//  HeliqSDK
+//
+//  Created by Abdhilabs on 05/04/26.
+//
+
+import Foundation
+
+public enum SubscriptionChannel: Sendable, Hashable {
+  case allMids
+  case l2Book(coin: String)
+  case trades(coin: String)
+  case userEvents
+  case userFills
+  case candle(coin: String, interval: String)
+  case orderUpdates
+  case userFundings
+  case userNonFundingLedgerUpdates
+  case webData2
+  case bbo(coin: String)
+  case activeAssetCtx(coin: String)
+  case activeAssetData(coin: String)
+  
+  public var channelName: String {
+    switch self {
+    case .allMids:
+      return "allMids"
+    case .l2Book:
+      return "l2Book"
+    case .trades:
+      return "trades"
+    case .userEvents:
+      return "userEvents"
+    case .userFills:
+      return "userFills"
+    case .candle:
+      return "candle"
+    case .orderUpdates:
+      return "orderUpdates"
+    case .userFundings:
+      return "userFundings"
+    case .userNonFundingLedgerUpdates:
+      return "userNonFundingLedgerUpdates"
+    case .webData2:
+      return "webData2"
+    case .bbo:
+      return "bbo"
+    case .activeAssetCtx:
+      return "activeAssetCtx"
+    case .activeAssetData:
+      return "activeAssetData"
+    }
+  }
+  
+  public var payload: [String: Any]? {
+    switch self {
+    case .l2Book(let coin):
+      return ["coin": coin]
+    case .trades(let coin):
+      return ["coin": coin]
+    case .candle(let coin, let interval):
+      return ["coin": coin, "interval": interval]
+    case .bbo(let coin):
+      return ["coin": coin]
+    case .activeAssetCtx(let coin):
+      return ["coin": coin]
+    case .activeAssetData(let coin):
+      return ["coin": coin]
+    default:
+      return nil
+    }
+  }
+}
+
+public final class SubscriptionManager: @unchecked Sendable {
+  private var activeSubscriptions: Set<SubscriptionChannel> = []
+  private let queue = DispatchQueue(label: "com.heliqsdk.subscriptionmanager")
+  private weak var webSocketService: WebSocketService?
+  
+  public init(webSocketService: WebSocketService? = nil) {
+    self.webSocketService = webSocketService
+  }
+  
+  public func subscribe(to channel: SubscriptionChannel) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      queue.async {
+        guard !self.activeSubscriptions.contains(channel) else {
+          continuation.resume()
+          return
+        }
+        self.activeSubscriptions.insert(channel)
+        continuation.resume()
+      }
+    }
+    
+    guard let service = webSocketService else { return }
+    
+    try service.subscribe(channel: channel.channelName, payload: channel.payload)
+  }
+  
+  public func unsubscribe(from channel: SubscriptionChannel) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      queue.async {
+        guard self.activeSubscriptions.contains(channel) else {
+          continuation.resume()
+          return
+        }
+        self.activeSubscriptions.remove(channel)
+        continuation.resume()
+      }
+    }
+    
+    guard let service = webSocketService else { return }
+    
+    try service.unsubscribe(channel: channel.channelName)
+  }
+  
+  public func unsubscribeAll() async throws {
+    let channels: [SubscriptionChannel] = await withCheckedContinuation { continuation in
+      queue.async {
+        let chs = Array(self.activeSubscriptions)
+        self.activeSubscriptions.removeAll()
+        continuation.resume(returning: chs)
+      }
+    }
+    
+    guard let service = webSocketService else { return }
+    
+    for channel in channels {
+      try service.unsubscribe(channel: channel.channelName)
+    }
+  }
+  
+  public func isSubscribed(to channel: SubscriptionChannel) -> Bool {
+    var result = false
+    queue.sync {
+      result = activeSubscriptions.contains(channel)
+    }
+    return result
+  }
+  
+  public func getActiveSubscriptions() -> [SubscriptionChannel] {
+    var result: [SubscriptionChannel] = []
+    queue.sync {
+      result = Array(activeSubscriptions)
+    }
+    return result
+  }
+}
