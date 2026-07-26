@@ -20,7 +20,9 @@ public enum Constants {
     public static let localBaseURL = "http://localhost:3000"
     
     public static let infoEndpoint = "/info"
-    public static let tradeEndpoint = "/trade"
+    public static let exchangeEndpoint = "/exchange"
+    @available(*, deprecated, message: "Use exchangeEndpoint; Hyperliquid signed actions use /exchange.")
+    public static let tradeEndpoint = exchangeEndpoint
     
     public static func baseURL(for environment: HeliqEnvironment) -> String {
       switch environment {

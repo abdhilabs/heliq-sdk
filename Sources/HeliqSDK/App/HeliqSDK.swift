@@ -39,6 +39,11 @@ public final class HeliqSDK: @unchecked Sendable {
     container.exchangeRepository
   }
   
+  /// Full-surface raw transport for official Info and Exchange APIs.
+  public var raw: HyperliquidAPI {
+    container.rawAPI
+  }
+
   public var environment: HeliqEnvironment {
     container.environment
   }

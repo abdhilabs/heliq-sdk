@@ -38,8 +38,8 @@ struct ConstantsTests {
     #expect(Constants.API.infoEndpoint == "/info")
   }
   
-  @Test func testTradeEndpoint_returnsCorrectPath() throws {
-    #expect(Constants.API.tradeEndpoint == "/trade")
+  @Test func testExchangeEndpoint_returnsCorrectPath() throws {
+    #expect(Constants.API.exchangeEndpoint == "/exchange")
   }
   
   @Test func testWebSocketMainnetURL_returnsCorrectURL() throws {

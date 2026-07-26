@@ -11,6 +11,7 @@ public final class DIContainer: Sendable {
   public let infoRepository: any InfoRepository
   public let exchangeRepository: any ExchangeRepository
   public let apiClient: APIClient
+  public let rawAPI: HyperliquidAPI
   public let environment: HeliqEnvironment
   
   public init(
@@ -22,6 +23,7 @@ public final class DIContainer: Sendable {
     self.infoRepository = infoRepository
     self.exchangeRepository = exchangeRepository
     self.apiClient = apiClient
+    self.rawAPI = HyperliquidAPI(apiClient: apiClient)
     self.environment = environment
   }
   
