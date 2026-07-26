@@ -141,6 +141,10 @@ public final class HyperliquidAPI: @unchecked Sendable {
   private let apiClient: APIClient
   public init(apiClient: APIClient) { self.apiClient = apiClient }
   public func info(_ request: HyperliquidInfoRequest) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/info", body: request.body())) }
+  public func userFillsByTime(user: String, page: HyperliquidPageRequest) async throws -> [HyperliquidUserFill] {
+    let response = try await info(.userFillsByTime(user: user, startTime: page.startTime, endTime: page.endTime))
+    return try HyperliquidUserFill.decodeList(JSONEncoder().encode(response))
+  }
   public func userFills(user: String, aggregateByTime: Bool? = nil) async throws -> [HyperliquidUserFill] {
     let response = try await info(.userFills(user: user, aggregateByTime: aggregateByTime))
     return try HyperliquidUserFill.decodeList(JSONEncoder().encode(response))

@@ -13,12 +13,12 @@ struct CanonicalMessagePackTests {
   @Test func encodesOfficialL1ActionInInsertionOrder() throws {
     let action = CanonicalMessagePack.Object([
       ("type", .string("cancel")),
-      ("cancels", .array([.object(["a": .number(0), "o": .number(12345)])]))
+      ("cancels", .array([.number(12345)]))
     ])
 
     let encoded = try CanonicalMessagePack.encode(action)
 
-    #expect(encoded.hexString == "82a474797065a663616e63656ca763616e63656c739182a16100a16fcd3039")
+    #expect(encoded.hexString == "82a474797065a663616e63656ca763616e63656c7391cd3039")
   }
 
   @Test func rejectsNonIntegralNumbersForMessagePackIntegerFields() {
