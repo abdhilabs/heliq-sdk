@@ -201,10 +201,10 @@ Use `HeliqSDK.shared.raw` for every documented Hyperliquid Info or Exchange shap
 
 | Priority | Item | Status | Tracking boundary |
 |----------|------|--------|-------------------|
-| P0 | Native L1 and user-signed EIP-712 signing | 🟡 Partial | `Signer.signL1` is golden-tested for official L1 mainnet/testnet vectors; `Signer.signUserSigned` is golden-tested for USD transfer. Add official fixtures before claiming individual user-signed action schemas are verified. |
-| P0 | Golden signed-action payload fixtures | 🟡 Initial coverage | L1 mainnet/testnet and USD-transfer fixtures lock the two protocol paths. Remaining user-signed and typed Exchange action schemas need their own fixtures. |
-| P1 | Correct typed Info request/response mappings | ⬜ Remaining | Existing typed wrappers still need official `userFills`/`userFillsByTime`, nested `candleSnapshot.req`, `orderStatus(user, oid)`, open-order DTOs, and side-preserving L2 book mapping. |
-| P1 | Typed convenience wrappers for remaining official API | ⬜ Demand-driven | Raw transport is complete; promote stable, frequently-used calls to repositories/use cases without duplicating raw transport. |
+| P0 | Native L1 and user-signed EIP-712 signing | 🟡 Partial | `Signer.signL1` is golden-tested for official dummy mainnet/testnet and nested L1 order vectors. `Signer.signUserSigned` is golden-tested for USD transfer and bridge withdrawal. Additional user-signed schemas remain caller-supplied until upstream fixtures exist. |
+| P0 | Golden signed-action payload fixtures | 🟡 Focused coverage | Official L1 dummy/order, USD-transfer, and bridge-withdraw fixtures lock canonical MessagePack plus both upstream user-signed schemas. Typed Exchange action fixtures remain endpoint-specific future work. |
+| P1 | Correct typed Info request/response mappings | ✅ Core corrections | Official payload/DTO coverage now includes nested `candleSnapshot.req`, `userFills`/`userFillsByTime`, `orderStatus` by oid or cloid, open orders, and side-preserving L2 books. |
+| P1 | Typed convenience wrappers for remaining official API | ⬜ Demand-driven | Raw transport is complete; current wrappers expose open orders, L2 book, fills, order status, and pagination. Promote additional stable calls without duplicating raw transport. |
 | P1 | `fastAssetCtxs` decode helper | ✅ Implemented | `FastAssetCtxDecoder` decodes the documented base64 raw-DEFLATE update into typed sparse fields. |
 | P2 | Pagination abstraction | 🟡 Started | `HyperliquidPageRequest` produces inclusive millisecond bounds. Automatic page collection remains endpoint-specific and caller-controlled. |
 | P2 | DTO mapping layer | ⬜ Deferred | Introduce endpoint DTOs only where stable public models need insulation from wire evolution. |
