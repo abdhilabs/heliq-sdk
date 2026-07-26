@@ -674,11 +674,20 @@ Tests/HeliqSDKTests/
     └── MockAPIClient.swift
 
 Tests/HeliqSDKIntegrationTests/
-├── InfoIntegrationTests.swift          (~15 tests)
-├── ExchangeIntegrationTests.swift       (~20 tests)
-├── WebSocketIntegrationTests.swift      (~15 tests)
+├── InfoIntegrationTests.swift          (15 tests — every Info method)
+├── ExchangeIntegrationTests.swift       (19 tests — every Exchange method)
+├── WebSocketIntegrationTests.swift      (11 tests — core + manager coverage)
 └── IntegrationTestCondition.swift       (conditional compilation)
+
+Examples/HeliqSDKDemoUITests/
+├── HeliqSDKDemoUITests.swift            (home/nav/settings/info/trading/ws/wallet)
+└── HeliqSDKDemoUITestsLaunchTests.swift
 ```
+
+### Feature coverage guard
+`Tests/HeliqSDKTests/Coverage/FeatureCoverageTests.swift` locks:
+- implemented Info / Exchange / WS sets
+- known missing Hyperliquid surfaces (so docs and code stay honest)
 
 ---
 
@@ -686,7 +695,7 @@ Tests/HeliqSDKIntegrationTests/
 
 ### Completed Coverage
 - ✅ All Error types (APIError, NetworkError, SigningError, ValidationError)
-- ✅ All Core Entities (Order, Market, User, Vault, Meta, Signing)
+- ✅ All Core Entities (Order, Market, User, Vault, Meta, Signing, Spot)
 - ✅ Constants and configuration
 - ✅ JSONCoder and encoding utilities
 - ✅ Data and String extensions
@@ -695,18 +704,23 @@ Tests/HeliqSDKIntegrationTests/
 - ✅ WalletService and KeyManager
 - ✅ Signer (basic tests)
 - ✅ InfoRepository with mock (30 tests)
-- ✅ ExchangeRepository with mock (36 tests)
-- ✅ All Info use cases (16 tests)
-- ✅ All Exchange use cases (18 tests)
+- ✅ ExchangeRepository with mock (40 tests)
+- ✅ All Info use cases + Exchange use cases
 - ✅ APIClient (7 tests - initialization and basic behavior)
-- ✅ WebSocketMessageParser, WebSocketDataParser (23 tests)
-- ✅ WebSocketMessageRouter, SubscriptionManager (10 tests)
-- ✅ WebSocketReconnectionHandler, WebSocketHealthMonitor (11 tests)
-- ✅ RetryPolicy (7 tests)
-- ✅ RateLimitHandler (5 tests)
-- ✅ AssetMetaCache (10 tests - actor-based cache with TTL)
+- ✅ WebSocketMessageParser, WebSocketDataParser
+- ✅ WebSocketMessageRouter, SubscriptionManager
+- ✅ WebSocketReconnectionHandler, WebSocketHealthMonitor
+- ✅ RetryPolicy + RateLimitHandler
+- ✅ AssetMetaCache (actor-based cache with TTL)
+- ✅ FeatureCoverageTests (HL gap matrix)
+- ✅ Integration tests for every implemented Info/Exchange/WS surface
+- ✅ Demo UI tests (HeliqSDKDemoUITests)
 
----
+### Still incomplete / known limits
+- ❌ Full Hyperliquid Info/Exchange surface (see README coverage matrix)
+- ❌ Exchange golden-payload parity vs official Python SDK
+- ❌ User address on WS subscription payloads
+- ⚠️ Integration tests currently assert “succeeds OR throws typed error” because response models still diverge from live HL JSON in places
 
 ## 10. Next Steps
 

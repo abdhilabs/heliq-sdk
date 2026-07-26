@@ -30,20 +30,26 @@ struct ContentView: View {
         NavigationLink("Info") {
           InfoView()
         }
+        .accessibilityIdentifier("nav_info")
         NavigationLink("Trading") {
           TradingView()
         }
+        .accessibilityIdentifier("nav_trading")
         NavigationLink("WebSocket") {
           WebSocketView()
         }
+        .accessibilityIdentifier("nav_websocket")
         NavigationLink("Wallet") {
           WalletView()
         }
+        .accessibilityIdentifier("nav_wallet")
         NavigationLink("Settings") {
           SettingsView()
         }
+        .accessibilityIdentifier("nav_settings")
       }
       .navigationTitle("HeliqSDK Demo")
+      .accessibilityIdentifier("home_list")
     }
   }
 }

@@ -88,6 +88,7 @@ struct SettingsView: View {
         }
         .disabled(isInitializing || sdkManager.isInitialized)
         .foregroundStyle(sdkManager.isInitialized ? .secondary : .primary)
+        .accessibilityIdentifier("initialize_sdk")
       }
       
       if sdkManager.isInitialized {

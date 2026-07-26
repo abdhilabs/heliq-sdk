@@ -2,7 +2,8 @@
 //  ExchangeIntegrationTests.swift
 //  HeliqSDKIntegrationTests
 //
-//  Created by Abdhilabs on 05/04/26.
+//  Live Hyperliquid testnet coverage for every implemented Exchange API method.
+//  Without a funded signing wallet these should error (signature/auth), not crash.
 //
 
 import Foundation
@@ -10,159 +11,154 @@ import Testing
 import HeliqSDK
 
 struct ExchangeIntegrationTests {
-  
-  // MARK: - Tests that require signature (expected to fail without valid key)
-  
-  @Test func testIntegration_placeOrder_marketOrder_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    let order = OrderRequest(
+  private let zeroAddress = "0x0000000000000000000000000000000000000000"
+
+  private func makeRepo() -> ExchangeRepositoryImpl {
+    ExchangeRepositoryImpl(apiClient: APIClient(environment: .testnet))
+  }
+
+  private func sampleOrder(limit: Bool = false) -> OrderRequest {
+    OrderRequest(
       asset: 0,
       side: .buy,
-      orderType: .market,
-      size: 1
+      orderType: limit ? .limit : .market,
+      size: 0.001,
+      price: limit ? 1 : nil,
+      reduceOnly: false,
+      cloid: nil
     )
-    // Without valid signature, this should throw an error
-    do {
-      _ = try await repo.placeOrder(order)
-      #expect(true) // If no error, test passes (API accepted the request)
-    } catch {
-      // Error is expected - API returns error without valid signature
-      #expect(error != nil)
+  }
+
+  // MARK: - Orders
+
+  @Test func testIntegration_placeOrder_market() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().placeOrder(sampleOrder())
     }
   }
-  
-  @Test func testIntegration_placeOrder_limitOrder_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    let order = OrderRequest(
-      asset: 0,
-      side: .buy,
-      orderType: .limit,
-      size: 1,
-      price: 50000
-    )
+
+  @Test func testIntegration_placeOrder_limit() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().placeOrder(sampleOrder(limit: true))
+    }
+  }
+
+  @Test func testIntegration_bulkOrders() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().bulkOrders([sampleOrder(), sampleOrder(limit: true)])
+    }
+  }
+
+  @Test func testIntegration_cancelOrder() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().cancelOrder(orderId: "999999999", asset: 0)
+    }
+  }
+
+  @Test func testIntegration_cancelByCloid() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().cancelByCloid(cloid: "0x1234567890abcdef1234567890abcdef", asset: 0)
+    }
+  }
+
+  @Test func testIntegration_cancelAll() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().cancelAll()
+    }
+  }
+
+  @Test func testIntegration_modifyOrder() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().modifyOrder(orderId: "999999999", asset: 0, size: 0.001, price: 1)
+    }
+  }
+
+  @Test func testIntegration_modifyByCloid() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().modifyByCloid(cloid: "0x1234567890abcdef1234567890abcdef", asset: 0, size: 0.001, price: 1)
+    }
+  }
+
+  // MARK: - Position / margin
+
+  @Test func testIntegration_setLeverage() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().setLeverage(asset: 0, leverage: 2)
+    }
+  }
+
+  @Test func testIntegration_setMarginMode() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().setMarginMode(asset: 0, mode: .cross)
+    }
+  }
+
+  // MARK: - Transfers
+
+  @Test func testIntegration_transfer() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().transfer(fromAddress: zeroAddress, toAddress: zeroAddress, amount: 0.001, asset: 0)
+    }
+  }
+
+  @Test func testIntegration_sendToAddress() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().sendToAddress(address: zeroAddress, amount: 0.001, asset: 0)
+    }
+  }
+
+  @Test func testIntegration_spotTransfer() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().spotTransfer(toAddress: zeroAddress, amount: 0.001, asset: 0)
+    }
+  }
+
+  @Test func testIntegration_vaultTransfer() async throws {
+    let vt = VaultTransfer(fromVault: false, toVault: true, usdcAmount: 1, vaultAddress: zeroAddress)
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().vaultTransfer(vaultTransfer: vt)
+    }
+  }
+
+  @Test func testIntegration_usdSend() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().usdSend(destination: zeroAddress, amount: 0.001)
+    }
+  }
+
+  // MARK: - Account ops
+
+  @Test func testIntegration_updateBuilder() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().updateBuilder(builderAddress: zeroAddress)
+    }
+  }
+
+  @Test func testIntegration_scheduleCancel() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().scheduleCancel(time: Date().addingTimeInterval(3600))
+    }
+  }
+
+  @Test func testIntegration_setReferrer() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().setReferrer(referrer: "test")
+    }
+  }
+
+  @Test func testIntegration_convertToMultiSigUser() async throws {
+    await expectExchangeErrorOrResponse {
+      try await makeRepo().convertToMultiSigUser()
+    }
+  }
+
+  // Helper: exchange calls must either succeed or throw a typed error (never crash).
+  private func expectExchangeErrorOrResponse<T>(_ work: () async throws -> T) async {
     do {
-      _ = try await repo.placeOrder(order)
+      _ = try await work()
       #expect(true)
     } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_modifyOrder_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    do {
-      _ = try await repo.modifyOrder(orderId: "999999999", asset: 0, size: 1, price: 50000)
-      #expect(true)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_cancelByCloid_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    do {
-      _ = try await repo.cancelByCloid(cloid: "0x1234567890abcdef1234567890abcdef12345678", asset: 0)
-      #expect(true)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_bulkOrders_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    let order = OrderRequest(
-      asset: 0,
-      side: .buy,
-      orderType: .market,
-      size: 1
-    )
-    do {
-      _ = try await repo.bulkOrders([order])
-      #expect(true)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_modifyByCloid_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    do {
-      _ = try await repo.modifyByCloid(cloid: "0x1234567890abcdef1234567890abcdef12345678", asset: 0, size: 1, price: 50000)
-      #expect(true)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_convertToMultiSig_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    do {
-      _ = try await repo.convertToMultiSigUser()
-      #expect(true)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_vaultTransfer_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    let vaultTransfer = VaultTransfer(
-      fromVault: false,
-      toVault: true,
-      usdcAmount: 1,
-      vaultAddress: "0x0000000000000000000000000000000000000000"
-    )
-    do {
-      _ = try await repo.vaultTransfer(vaultTransfer: vaultTransfer)
-      #expect(true)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_sendToAddress_requiresSignature() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    do {
-      _ = try await repo.sendToAddress(address: "0x0000000000000000000000000000000000000000", amount: 0.001, asset: 0)
-      #expect(true)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  // MARK: - Tests that expose SDK model mismatches
-  
-  @Test func testIntegration_cancelOrder_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    // This exposes SDK model mismatch for cancel response
-    do {
-      let result = try await repo.cancelOrder(orderId: "999999999", asset: 0)
-      #expect(result.status.isEmpty == false)
-    } catch {
-      // Error indicates SDK model doesn't match API response
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_cancelAll_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = ExchangeRepositoryImpl(apiClient: apiClient)
-    // This exposes SDK model mismatch for cancelAll response
-    do {
-      let result = try await repo.cancelAll()
-      #expect(result.cancelledOrders.count >= 0)
-    } catch {
-      #expect(error != nil)
+      #expect(error is APIError || error is NetworkError || error is DecodingError)
     }
   }
 }

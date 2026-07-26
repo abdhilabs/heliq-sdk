@@ -41,7 +41,7 @@ targets:
       - package: web3swift
 
   HeliqSDKTests:
-    type: bundle
+    type: bundle.unit-test
     platform: iOS
     sources:
       - path: Tests/HeliqSDKTests
@@ -49,14 +49,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.heliq.SDKTests
         PRODUCT_NAME: HeliqSDKTests
-        INFOPLIST_FILE: Tests/HeliqSDKTests/Info.plist
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/HeliqSDK.framework/HeliqSDK"
-        BUNDLE_LOADER: "$(TEST_HOST)"
+        GENERATE_INFOPLIST_FILE: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @loader_path/Frameworks"
     dependencies:
       - target: HeliqSDK
+      - sdk: Testing.framework
+      - sdk: XCTest.framework
 
   HeliqSDKIntegrationTests:
-    type: bundle
+    type: bundle.unit-test
     platform: iOS
     sources:
       - path: Tests/HeliqSDKIntegrationTests
@@ -64,11 +65,12 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.heliq.SDKIntegrationTests
         PRODUCT_NAME: HeliqSDKIntegrationTests
-        INFOPLIST_FILE: Tests/HeliqSDKIntegrationTests/Info.plist
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/HeliqSDK.framework/HeliqSDK"
-        BUNDLE_LOADER: "$(TEST_HOST)"
+        GENERATE_INFOPLIST_FILE: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @loader_path/Frameworks"
     dependencies:
       - target: HeliqSDK
+      - sdk: Testing.framework
+      - sdk: XCTest.framework
 
   HeliqSDKDemo:
     type: application
@@ -116,6 +118,22 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
     dependencies:
       - target: HeliqSDK
+
+  HeliqSDKDemoUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: Examples/HeliqSDKDemoUITests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.heliq.SDKDemoUITests
+        PRODUCT_NAME: HeliqSDKDemoUITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: HeliqSDKDemo
+        CODE_SIGNING_ALLOWED: "YES"
+        CODE_SIGNING_REQUIRED: "NO"
+    dependencies:
+      - target: HeliqSDKDemo
 
 schemes:
   HeliqSDK:
@@ -180,10 +198,13 @@ schemes:
     build:
       targets:
         HeliqSDKDemo: all
+        HeliqSDKDemoUITests: [test]
     run:
       config: Debug
     test:
       config: Debug
+      targets:
+        - HeliqSDKDemoUITests
     profile:
       config: Release
     analyze:
