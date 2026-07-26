@@ -38,6 +38,14 @@ struct HyperliquidInfoRequestTests {
     #expect(object?["dex"] as? String == "xyz")
   }
 
+  @Test func orderStatusAcceptsOfficialClientOrderID() throws {
+    let body = try HyperliquidInfoRequest.orderStatus(user: "0xabc", cloid: "0x1234").data()
+    let object = try JSONSerialization.jsonObject(with: body) as! [String: Any]
+    #expect(object["type"] as? String == "orderStatus")
+    #expect(object["user"] as? String == "0xabc")
+    #expect(object["oid"] as? String == "0x1234")
+  }
+
   @Test func orderStatusUsesOfficialUserAndOidFields() throws {
     let body = try HyperliquidInfoRequest.orderStatus(user: "0xabc", oid: 123).data()
     let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]

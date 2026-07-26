@@ -74,7 +74,11 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
   }
 
   public static func orderStatus(user: String, oid: Int64) -> Self {
-    Self(type: .custom("orderStatus"), parameters: ["user": .string(user), "oid": .number(Double(oid))])
+    Self(type: .orderStatus, parameters: ["user": .string(user), "oid": .number(Double(oid))])
+  }
+
+  public static func orderStatus(user: String, cloid: String) -> Self {
+    Self(type: .orderStatus, parameters: ["user": .string(user), "oid": .string(cloid)])
   }
 
   public static func userFillsByTime(user: String, startTime: Date, endTime: Date? = nil) -> Self {
@@ -141,6 +145,19 @@ public final class HyperliquidAPI: @unchecked Sendable {
   private let apiClient: APIClient
   public init(apiClient: APIClient) { self.apiClient = apiClient }
   public func info(_ request: HyperliquidInfoRequest) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/info", body: request.body())) }
+  public func orderStatus(user: String, oid: Int64) async throws -> HyperliquidOrderStatus {
+    try await decodeOrderStatus(.orderStatus(user: user, oid: oid))
+  }
+
+  public func orderStatus(user: String, cloid: String) async throws -> HyperliquidOrderStatus {
+    try await decodeOrderStatus(.orderStatus(user: user, cloid: cloid))
+  }
+
+  private func decodeOrderStatus(_ request: HyperliquidInfoRequest) async throws -> HyperliquidOrderStatus {
+    let response = try await info(request)
+    return try HyperliquidOrderStatus.decode(JSONEncoder().encode(response))
+  }
+
   public func userFillsByTime(user: String, page: HyperliquidPageRequest) async throws -> [HyperliquidUserFill] {
     let response = try await info(.userFillsByTime(user: user, startTime: page.startTime, endTime: page.endTime))
     return try HyperliquidUserFill.decodeList(JSONEncoder().encode(response))
