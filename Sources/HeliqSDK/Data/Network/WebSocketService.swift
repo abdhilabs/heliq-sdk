@@ -126,6 +126,20 @@ public func subscribe(channel: String, payload: [String: Any]? = nil) throws {
     try send(jsonString)
   }
   
+  public func subscribe(_ subscription: HyperliquidWebSocketSubscription) throws {
+    let message: [String: Any] = ["method": "subscribe", "subscription": subscription.payload()]
+    let data = try JSONSerialization.data(withJSONObject: message)
+    guard let text = String(data: data, encoding: .utf8) else { throw NetworkError.invalidResponse }
+    try send(text)
+  }
+
+  public func unsubscribe(_ subscription: HyperliquidWebSocketSubscription) throws {
+    let message: [String: Any] = ["method": "unsubscribe", "subscription": subscription.payload()]
+    let data = try JSONSerialization.data(withJSONObject: message)
+    guard let text = String(data: data, encoding: .utf8) else { throw NetworkError.invalidResponse }
+    try send(text)
+  }
+
   private func receiveMessage() {
     webSocketTask?.receive { [weak self] result in
       guard let self = self else { return }

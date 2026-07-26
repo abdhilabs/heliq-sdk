@@ -75,6 +75,7 @@ public enum SubscriptionChannel: Sendable, Hashable {
 
 public final class SubscriptionManager: @unchecked Sendable {
   private var activeSubscriptions: Set<SubscriptionChannel> = []
+  private var activeRawSubscriptions: Set<HyperliquidWebSocketSubscription> = []
   private let queue = DispatchQueue(label: "com.heliqsdk.subscriptionmanager")
   private weak var webSocketService: WebSocketService?
   
@@ -116,20 +117,46 @@ public final class SubscriptionManager: @unchecked Sendable {
     try service.unsubscribe(channel: channel.channelName)
   }
   
-  public func unsubscribeAll() async throws {
-    let channels: [SubscriptionChannel] = await withCheckedContinuation { continuation in
+  public func subscribe(to subscription: HyperliquidWebSocketSubscription) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
       queue.async {
-        let chs = Array(self.activeSubscriptions)
-        self.activeSubscriptions.removeAll()
-        continuation.resume(returning: chs)
+        guard !self.activeRawSubscriptions.contains(subscription) else { continuation.resume(); return }
+        self.activeRawSubscriptions.insert(subscription)
+        continuation.resume()
       }
     }
-    
-    guard let service = webSocketService else { return }
-    
-    for channel in channels {
-      try service.unsubscribe(channel: channel.channelName)
+    try webSocketService?.subscribe(subscription)
+  }
+
+  public func unsubscribe(from subscription: HyperliquidWebSocketSubscription) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      queue.async {
+        guard self.activeRawSubscriptions.contains(subscription) else { continuation.resume(); return }
+        self.activeRawSubscriptions.remove(subscription)
+        continuation.resume()
+      }
     }
+    try webSocketService?.unsubscribe(subscription)
+  }
+
+  public func isSubscribed(to subscription: HyperliquidWebSocketSubscription) -> Bool {
+    queue.sync { activeRawSubscriptions.contains(subscription) }
+  }
+
+  public func unsubscribeAll() async throws {
+    let (channels, rawSubscriptions): ([SubscriptionChannel], [HyperliquidWebSocketSubscription]) = await withCheckedContinuation { continuation in
+      queue.async {
+        let channels = Array(self.activeSubscriptions)
+        let rawSubscriptions = Array(self.activeRawSubscriptions)
+        self.activeSubscriptions.removeAll()
+        self.activeRawSubscriptions.removeAll()
+        continuation.resume(returning: (channels, rawSubscriptions))
+      }
+    }
+
+    guard let service = webSocketService else { return }
+    for channel in channels { try service.unsubscribe(channel: channel.channelName) }
+    for subscription in rawSubscriptions { try service.unsubscribe(subscription) }
   }
   
   public func isSubscribed(to channel: SubscriptionChannel) -> Bool {
