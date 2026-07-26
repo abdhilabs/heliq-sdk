@@ -54,6 +54,13 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
   public func body() -> [String: JSONValue] { parameters.merging(["type": .string(type.rawValue)]) { _, new in new } }
   public func data() throws -> Data { try JSONEncoder().encode(body()) }
 
+  public static func l2Book(coin: String, nSigFigs: Int? = nil, mantissa: Int? = nil) -> Self {
+    var parameters: [String: JSONValue] = ["coin": .string(coin)]
+    if let nSigFigs { parameters["nSigFigs"] = .number(Double(nSigFigs)) }
+    if let mantissa { parameters["mantissa"] = .number(Double(mantissa)) }
+    return Self(type: .l2Book, parameters: parameters)
+  }
+
   public static func openOrders(user: String, dex: String? = nil) -> Self {
     var parameters: [String: JSONValue] = ["user": .string(user)]
     if let dex { parameters["dex"] = .string(dex) }
@@ -128,6 +135,10 @@ public final class HyperliquidAPI: @unchecked Sendable {
   private let apiClient: APIClient
   public init(apiClient: APIClient) { self.apiClient = apiClient }
   public func info(_ request: HyperliquidInfoRequest) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/info", body: request.body())) }
+  public func l2Book(coin: String, nSigFigs: Int? = nil, mantissa: Int? = nil) async throws -> HyperliquidL2BookSnapshot {
+    let response = try await info(.l2Book(coin: coin, nSigFigs: nSigFigs, mantissa: mantissa))
+    return try HyperliquidL2BookSnapshot.decode(JSONEncoder().encode(response))
+  }
   public func openOrders(user: String, dex: String? = nil) async throws -> [HyperliquidOpenOrder] {
     let response = try await info(.openOrders(user: user, dex: dex))
     return try HyperliquidOpenOrder.decodeList(JSONEncoder().encode(response))

@@ -10,6 +10,16 @@ import Testing
 import HeliqSDK
 
 struct HyperliquidInfoRequestTests {
+  @Test func l2BookIncludesOptionalPrecisionControls() throws {
+    let body = try HyperliquidInfoRequest.l2Book(coin: "BTC", nSigFigs: 5, mantissa: 2).data()
+    let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+
+    #expect(object?["type"] as? String == "l2Book")
+    #expect(object?["coin"] as? String == "BTC")
+    #expect(object?["nSigFigs"] as? Int == 5)
+    #expect(object?["mantissa"] as? Int == 2)
+  }
+
   @Test func openOrdersIncludesOptionalDex() throws {
     let body = try HyperliquidInfoRequest.openOrders(user: "0xabc", dex: "xyz").data()
     let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]
