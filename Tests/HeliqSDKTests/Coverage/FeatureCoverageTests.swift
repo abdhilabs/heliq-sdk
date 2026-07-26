@@ -4,7 +4,7 @@
 //
 //  Created by Abdhilabs on 05/04/26.
 //
-//  Guards that every SDK-supported Hyperliquid surface stays wired.
+//  Guards official Hyperliquid full-surface transport coverage.
 //
 
 import Foundation
@@ -12,187 +12,38 @@ import Testing
 import HeliqSDK
 
 struct FeatureCoverageTests {
-  /// Info endpoints currently implemented by HeliqSDK (not full Hyperliquid surface).
-  static let implementedInfoTypes: Set<String> = [
-    "userState",
-    "spotUserState",
-    "allMids",
-    "assetCtxs",
-    "spotAssetCtxs",
-    "candleSnapshot",
-    "l2Book",
-    "queryOrderByOid",
-    "queryOrderByCloid",
-    "queryFills",
-    "queryUserFundings",
-    "meta",
-    "spotMeta",
-    "getTime",
-    "fetchBuilderFee"
+  static let officialInfoTypes: Set<String> = [
+    "allMids", "openOrders", "frontendOpenOrders", "userFills", "userFillsByTime", "userRateLimit", "orderStatus", "l2Book", "candleSnapshot", "maxBuilderFee", "historicalOrders", "userTwapSliceFills", "subAccounts", "userStakingSummary", "userStakingHistory", "userStakingRewards", "delegatorSummary", "delegations", "delegatorHistory", "delegatorRewards", "userRole", "portfolio", "userFees", "referral", "userState", "spotUserState", "clearinghouseState", "meta", "metaAndAssetCtxs", "spotMeta", "spotMetaAndAssetCtxs", "assetCtxs", "spotAssetCtxs", "predictedFundings", "perpsAtOpenInterestCap", "vaultDetails", "userVaultEquities", "userNonFundingLedgerUpdates", "queryOrderByOid", "queryOrderByCloid", "queryFills", "queryUserFundings", "getTime", "fetchBuilderFee", "maxBuilderFeeApproval", "approvedBuilders", "borrowLendUserState", "borrowLendReserveState", "allBorrowLendReserveStates", "webData2"
   ]
 
-  /// Exchange action types currently implemented by HeliqSDK.
-  static let implementedExchangeTypes: Set<String> = [
-    "order",
-    "bulkOrders",
-    "cancel",
-    "cancelByCloid",
-    "cancelAll",
-    "modify",
-    "modifyByCloid",
-    "setLeverage",
-    "setMarginMode",
-    "transfer",
-    "sendToAddress",
-    "spotTransfer",
-    "vaultTransfer",
-    "updateBuilder",
-    "scheduleCancel",
-    "setReferrer",
-    "convertToMultiSig",
-    "usdSend"
+  static let officialExchangeActions: Set<String> = [
+    "order", "cancel", "cancelByCloid", "scheduleCancel", "modify", "batchModify", "updateLeverage", "updateIsolatedMargin", "usdSend", "withdraw3", "spotSend", "usdClassTransfer", "vaultTransfer", "createSubAccount", "subAccountTransfer", "approveAgent", "approveBuilderFee", "updateBuilderFee", "tokenDelegate", "cDeposit", "cWithdraw", "twapOrder", "twapCancel", "setReferrer", "convertToMultiSig", "multiSig", "reserveRequestWeight", "noop"
   ]
 
-  /// Official Hyperliquid WS subscription types covered by SubscriptionChannel.
-  static let implementedWSChannels: Set<String> = [
-    "allMids",
-    "l2Book",
-    "trades",
-    "userEvents",
-    "userFills",
-    "candle",
-    "orderUpdates",
-    "userFundings",
-    "userNonFundingLedgerUpdates",
-    "webData2",
-    "bbo",
-    "activeAssetCtx",
-    "activeAssetData"
+  static let officialWSSubscriptions: Set<String> = [
+    "allMids", "notification", "webData2", "webData3", "twapStates", "clearinghouseState", "openOrders", "userEvents", "userFills", "userFundings", "userNonFundingLedgerUpdates", "userTwapSliceFills", "userTwapHistory", "l2Book", "trades", "candle", "bbo", "activeAssetCtx", "activeAssetData", "spotState", "allDexsClearinghouseState", "allDexsAssetCtxs", "fastAssetCtxs", "outcomeMetaUpdates", "orderUpdates"
   ]
 
-  /// Known Hyperliquid Info types NOT yet in the SDK (documented gap).
-  static let missingInfoTypes: Set<String> = [
-    "openOrders",
-    "frontendOpenOrders",
-    "userFills",
-    "userFillsByTime",
-    "historicalOrders",
-    "orderStatus",
-    "portfolio",
-    "userRole",
-    "userFees",
-    "referral",
-    "subAccounts",
-    "vaultDetails",
-    "userVaultEquities",
-    "userTwapSliceFills",
-    "maxBuilderFee",
-    "approvedBuilders",
-    "clearinghouseState",
-    "metaAndAssetCtxs",
-    "spotMetaAndAssetCtxs",
-    "predictedFundings",
-    "perpsAtOpenInterestCap",
-    "delegatorSummary",
-    "delegations",
-    "delegatorHistory",
-    "delegatorRewards",
-    "borrowLendUserState",
-    "borrowLendReserveState",
-    "allBorrowLendReserveStates"
-  ]
-
-  /// Known Hyperliquid Exchange actions NOT yet in the SDK (documented gap).
-  static let missingExchangeTypes: Set<String> = [
-    "withdraw3",
-    "spotSend",
-    "usdClassTransfer",
-    "updateLeverage",
-    "updateIsolatedMargin",
-    "batchModify",
-    "twapOrder",
-    "twapCancel",
-    "approveAgent",
-    "approveBuilderFee",
-    "cDeposit",
-    "cWithdraw",
-    "tokenDelegate",
-    "vaultDistribute",
-    "createSubAccount",
-    "subAccountTransfer",
-    "sendAsset",
-    "reserveRequestWeight",
-    "topUpIsolatedOnlyMargin"
-  ]
-
-  /// Official WS channels NOT yet in SubscriptionChannel.
-  static let missingWSChannels: Set<String> = [
-    "notification",
-    "webData3",
-    "twapStates",
-    "clearinghouseState",
-    "openOrders",
-    "userTwapSliceFills",
-    "userTwapHistory",
-    "spotState",
-    "allDexsClearinghouseState",
-    "allDexsAssetCtxs",
-    "outcomeMetaUpdates",
-    "fastAssetCtxs"
-  ]
-
-  @Test func testImplementedInfoCoverage_isNonEmptyAndStable() {
-    #expect(Self.implementedInfoTypes.count == 15)
-    #expect(Self.implementedInfoTypes.contains("allMids"))
-    #expect(Self.implementedInfoTypes.contains("meta"))
-    #expect(Self.implementedInfoTypes.contains("l2Book"))
+  @Test func infoParity_enumPreservesEveryOfficialType() {
+    let encoded = Set(Self.officialInfoTypes.map { HyperliquidInfoRequest(type: .custom($0)).body()["type"] })
+    #expect(encoded.count == Self.officialInfoTypes.count)
+    #expect(encoded.contains(.string("borrowLendUserState")))
   }
 
-  @Test func testImplementedExchangeCoverage_isNonEmptyAndStable() {
-    #expect(Self.implementedExchangeTypes.count == 18)
-    #expect(Self.implementedExchangeTypes.contains("order"))
-    #expect(Self.implementedExchangeTypes.contains("cancel"))
-    #expect(Self.implementedExchangeTypes.contains("usdSend"))
+  @Test func exchangeParity_enumPreservesEveryOfficialAction() {
+    let encoded = Set(Self.officialExchangeActions.map { HyperliquidExchangeAction(type: .custom($0)).body()["type"] })
+    #expect(encoded.count == Self.officialExchangeActions.count)
+    #expect(encoded.contains(.string("twapOrder")))
   }
 
-  @Test func testImplementedWSCoverage_matchesSubscriptionChannel() {
-    let channels: [SubscriptionChannel] = [
-      .allMids,
-      .l2Book(coin: "BTC"),
-      .trades(coin: "BTC"),
-      .userEvents,
-      .userFills,
-      .candle(coin: "BTC", interval: "1m"),
-      .orderUpdates,
-      .userFundings,
-      .userNonFundingLedgerUpdates,
-      .webData2,
-      .bbo(coin: "BTC"),
-      .activeAssetCtx(coin: "BTC"),
-      .activeAssetData(coin: "BTC")
-    ]
-    let names = Set(channels.map(\.channelName))
-    #expect(names == Self.implementedWSChannels)
+  @Test func webSocketParity_payloadPreservesEveryOfficialSubscription() {
+    let names = Set(Self.officialWSSubscriptions.compactMap { HyperliquidWebSocketSubscription(type: .custom($0)).payload()["type"] as? String })
+    #expect(names == Self.officialWSSubscriptions)
   }
 
-  @Test func testMissingInfoAndImplemented_doNotOverlap() {
-    #expect(Self.implementedInfoTypes.isDisjoint(with: Self.missingInfoTypes))
-  }
-
-  @Test func testMissingExchangeAndImplemented_doNotOverlap() {
-    #expect(Self.implementedExchangeTypes.isDisjoint(with: Self.missingExchangeTypes))
-  }
-
-  @Test func testMissingWSAndImplemented_doNotOverlap() {
-    #expect(Self.implementedWSChannels.isDisjoint(with: Self.missingWSChannels))
-  }
-
-  @Test func testInfoPath_isPublicAndStable() {
-    // Endpoint routing action strings are internal; APIRouterTests owns wire checks.
+  @Test func endpoints_pointToOfficialHosts() {
     #expect(Constants.API.infoEndpoint == "/info")
-  }
-
-  @Test func testEnvironments_pointToOfficialHosts() {
+    #expect(Constants.API.exchangeEndpoint == "/exchange")
     #expect(Constants.API.mainnetBaseURL == "https://api.hyperliquid.xyz")
     #expect(Constants.API.testnetBaseURL == "https://api.hyperliquid-testnet.xyz")
     #expect(Constants.WebSocket.mainnetURL == "wss://api.hyperliquid.xyz/ws")

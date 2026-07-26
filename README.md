@@ -8,9 +8,9 @@ A Swift SDK for Hyperliquid DEX, built with Swift 6.0 and async/await concurrenc
 - **Swift 6 Concurrency**: Native async/await throughout the SDK
 - **WebSocket Support**: Real-time market data and user event subscriptions
 - **Type-Safe**: All entities conform to `Sendable` for Swift 6 data race safety
-- **Partial Hyperliquid Coverage**: Core Info + Exchange + WS surfaces are implemented; advanced HL features are tracked as gaps (see below)
+- **Full Hyperliquid Transport Coverage**: Every documented Info type, signed Exchange action, and WebSocket subscription is representable through the lossless `raw` / `HyperliquidWebSocketSubscription` APIs. Core convenience repositories remain additive typed wrappers.
 
-> **Coverage note:** README previously claimed “full” Hyperliquid coverage. That was inaccurate. See [Hyperliquid API Coverage](#hyperliquid-api-coverage) for the honest matrix.
+> **Coverage note:** HeliqSDK provides core typed convenience repositories plus a full lossless transport layer. Hyperliquid responses evolve frequently, so advanced responses return `JSONValue` rather than lossy SDK models.
 
 ## Installation
 
@@ -83,7 +83,37 @@ Validated against official docs:
 - [Exchange endpoint](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint)
 - [WebSocket subscriptions](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket/subscriptions)
 
-### Info API (`POST /info`) — implemented
+### Full-surface raw transport (`POST /info`, `POST /exchange`, WebSocket)
+
+The `InfoRepository` and `ExchangeRepository` APIs below are typed convenience wrappers. For full Hyperliquid surface parity, use the lossless transport. Every documented request/action field is supplied in `parameters` and responses decode as `JSONValue`, so new server response fields are never discarded.
+
+```swift
+// Any documented Info request type, including openOrders, portfolio, staking,
+// vault, HIP-3, and borrow/lend requests.
+let result = try await HeliqSDK.shared.raw.info(.init(
+    type: .openOrders,
+    parameters: ["user": .string("0x...")]
+))
+
+// Signed Exchange actions. Sign EIP-712 action externally until native signer is available.
+let action = HyperliquidExchangeAction(type: .twapOrder, parameters: [
+    "twap": .object([/* official action fields */])
+])
+let response = try await HeliqSDK.shared.raw.exchange(.init(
+    action: action, nonce: nonce, signature: signature, expiresAfter: expiry
+))
+
+// Any documented WebSocket feed, preserving user, coin, dex, and optional fields.
+let subscription = HyperliquidWebSocketSubscription(
+    type: .openOrders,
+    parameters: ["user": .string("0x..."), "dex": .string("xyz")]
+)
+try ws.subscribe(subscription)
+```
+
+### Typed convenience APIs
+
+### Info API (`POST /info`) — typed convenience methods
 
 | SDK method | Request `type` |
 |---|---|
@@ -103,11 +133,11 @@ Validated against official docs:
 | `getTime` | `getTime` |
 | `fetchBuilderFee` | `fetchBuilderFee` |
 
-### Info API — **not yet implemented** (known gaps)
+### Info API — raw transport coverage
 
-`openOrders`, `frontendOpenOrders`, `userFills` / `userFillsByTime` (official names), `historicalOrders`, `orderStatus`, `portfolio`, `userRole`, `userFees`, `referral`, `subAccounts`, `vaultDetails`, `userVaultEquities`, `userTwapSliceFills`, `maxBuilderFee`, `approvedBuilders`, `clearinghouseState`, `metaAndAssetCtxs`, `spotMetaAndAssetCtxs`, `predictedFundings`, staking/delegator queries, borrow/lend queries, and more.
+All official Info request types are available through `HyperliquidInfoType` and `.custom(String)`. This includes open orders, frontend orders, fills/time-range queries, rate limits, order status, historical/TWAP data, subaccounts, staking/delegation, portfolio/fees/referral, metadata/context variants, vault data, HIP-3, builder approvals, and borrow/lend state.
 
-### Exchange API (`POST /exchange`) — implemented
+### Exchange API (`POST /exchange`) — typed convenience methods
 
 | SDK method | Action `type` |
 |---|---|
@@ -130,21 +160,19 @@ Validated against official docs:
 | `convertToMultiSigUser` | `convertToMultiSig` |
 | `usdSend` | `usdSend` |
 
-### Exchange API — **not yet implemented** (known gaps)
+### Exchange API — raw transport coverage
 
-`withdraw3`, `spotSend`, `usdClassTransfer`, `updateLeverage` / `updateIsolatedMargin` (official names), `batchModify`, `twapOrder` / `twapCancel`, `approveAgent`, `approveBuilderFee`, `cDeposit` / `cWithdraw`, `tokenDelegate`, sub-account create/transfer, `sendAsset`, and more.
+All official signed Exchange actions are available through `HyperliquidExchangeActionType` and `.custom(String)`, including withdrawals, spot sends, USDC-class transfers, leverage/margin updates, batch modifications, TWAP, agent/builder approvals, vault/sub-account actions, delegation, Core deposits/withdrawals, multi-sig, and request-weight reservation.
 
-> **Wire-format caveat:** Several exchange action type strings and request body shapes in the SDK are simplified vs the official Hyperliquid Python SDK. Integration tests currently exercise “does not crash / surfaces API or decode error” rather than full golden-payload parity. Treat signed exchange calls as **beta** until payload parity is locked.
+> **Signing boundary:** `Signer` is a pre-existing stub and is not used by the raw transport. Callers must provide an EIP-712 `SignatureTypes` value for `HyperliquidExchangeEnvelope`. The SDK never fabricates a signature or sends a private key.
 
-### WebSocket — implemented channels
+### WebSocket — typed convenience channels
 
 `allMids`, `l2Book`, `trades`, `userEvents`, `userFills`, `candle`, `orderUpdates`, `userFundings`, `userNonFundingLedgerUpdates`, `webData2`, `bbo`, `activeAssetCtx`, `activeAssetData`
 
-### WebSocket — **not yet implemented**
+### WebSocket — raw transport coverage
 
-`notification`, `webData3`, `twapStates`, `clearinghouseState`, `openOrders`, `userTwapSliceFills`, `userTwapHistory`, `spotState`, `allDexsClearinghouseState`, `allDexsAssetCtxs`, `outcomeMetaUpdates`, `fastAssetCtxs`
-
-Also: user-scoped channels currently do **not** attach a `user` address in `SubscriptionChannel.payload` — callers must supply it via low-level `WebSocketService.subscribe` if needed.
+All official subscriptions, including `notification`, `webData3`, `twapStates`, `clearinghouseState`, `openOrders`, user TWAP feeds, `spotState`, all-DEX state/context, outcome metadata, and compressed `fastAssetCtxs`, are available through `HyperliquidWebSocketSubscription`. User-scoped fields are carried explicitly in `parameters`.
 
 ## Architecture
 

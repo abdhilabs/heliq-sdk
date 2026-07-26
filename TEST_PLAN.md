@@ -685,9 +685,7 @@ Examples/HeliqSDKDemoUITests/
 ```
 
 ### Feature coverage guard
-`Tests/HeliqSDKTests/Coverage/FeatureCoverageTests.swift` locks:
-- implemented Info / Exchange / WS sets
-- known missing Hyperliquid surfaces (so docs and code stay honest)
+`Tests/HeliqSDKTests/Coverage/FeatureCoverageTests.swift` locks every official Info, Exchange, and WebSocket identifier against the lossless raw transport. `HyperliquidParityTransportTests.swift` verifies field preservation, user-scoped subscriptions, and envelope encoding.
 
 ---
 
@@ -712,15 +710,15 @@ Examples/HeliqSDKDemoUITests/
 - ✅ WebSocketReconnectionHandler, WebSocketHealthMonitor
 - ✅ RetryPolicy + RateLimitHandler
 - ✅ AssetMetaCache (actor-based cache with TTL)
-- ✅ FeatureCoverageTests (HL gap matrix)
-- ✅ Integration tests for every implemented Info/Exchange/WS surface
+- ✅ FeatureCoverageTests (all official transport identifiers)
+- ✅ Raw full-surface Info transport integration test on testnet
+- ✅ Integration tests for every typed Info/Exchange/WS convenience surface
 - ✅ Demo UI tests (HeliqSDKDemoUITests)
 
-### Still incomplete / known limits
-- ❌ Full Hyperliquid Info/Exchange surface (see README coverage matrix)
-- ❌ Exchange golden-payload parity vs official Python SDK
-- ❌ User address on WS subscription payloads
-- ⚠️ Integration tests currently assert “succeeds OR throws typed error” because response models still diverge from live HL JSON in places
+### Deliberate boundaries
+- ⚠️ `Signer` is still a stub. Raw exchange actions require caller-provided EIP-712 signatures; the SDK does not fabricate signatures or serialize private keys.
+- ⚠️ Advanced transport responses are `JSONValue` to preserve upstream fields. Typed models remain available for the original core convenience surface.
+- ⚠️ `fastAssetCtxs` payload decompression is intentionally caller-owned; the raw subscription transport exposes the official feed unchanged.
 
 ## 10. Next Steps
 
