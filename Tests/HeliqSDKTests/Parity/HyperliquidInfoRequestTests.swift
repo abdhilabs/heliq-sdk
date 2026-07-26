@@ -10,6 +10,15 @@ import Testing
 import HeliqSDK
 
 struct HyperliquidInfoRequestTests {
+  @Test func userFillsIncludesOptionalAggregationFlag() throws {
+    let body = try HyperliquidInfoRequest.userFills(user: "0xabc", aggregateByTime: true).data()
+    let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]
+
+    #expect(object?["type"] as? String == "userFills")
+    #expect(object?["user"] as? String == "0xabc")
+    #expect(object?["aggregateByTime"] as? Bool == true)
+  }
+
   @Test func l2BookIncludesOptionalPrecisionControls() throws {
     let body = try HyperliquidInfoRequest.l2Book(coin: "BTC", nSigFigs: 5, mantissa: 2).data()
     let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]
