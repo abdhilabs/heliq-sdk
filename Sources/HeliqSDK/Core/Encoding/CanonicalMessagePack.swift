@@ -8,12 +8,23 @@
 import Foundation
 
 /// Order-preserving MessagePack encoder for Hyperliquid L1 action hashes.
-/// Hyperliquid hashes MessagePack bytes, so signing callers must supply fields
-/// in official wire order through `Object` rather than an unordered dictionary.
+/// Every map uses `Object`, not a Swift dictionary, because its byte order is signed.
 public enum CanonicalMessagePack {
+  public indirect enum Value: Sendable {
+    case string(String)
+    case bool(Bool)
+    case null
+    case number(Double)
+    case array([Value])
+    case object(Object)
+  }
+
   public struct Object: Sendable {
-    public let fields: [(String, JSONValue)]
-    public init(_ fields: [(String, JSONValue)]) { self.fields = fields }
+    public let fields: [(String, Value)]
+
+    public init(_ fields: [(String, Value)]) {
+      self.fields = fields
+    }
   }
 
   public static func encode(_ object: Object) throws -> Data {
@@ -22,8 +33,10 @@ public enum CanonicalMessagePack {
     return output
   }
 
-  private static func encodeMap(_ fields: [(String, JSONValue)], into output: inout Data) throws {
-    guard fields.count <= 15 else { throw ValidationError.malformedData(reason: "MessagePack maps over 15 fields are not supported") }
+  private static func encodeMap(_ fields: [(String, Value)], into output: inout Data) throws {
+    guard fields.count <= 15 else {
+      throw ValidationError.malformedData(reason: "MessagePack maps over 15 fields are not supported")
+    }
     output.append(UInt8(0x80 | fields.count))
     for (key, value) in fields {
       try encodeString(key, into: &output)
@@ -31,24 +44,34 @@ public enum CanonicalMessagePack {
     }
   }
 
-  private static func encode(_ value: JSONValue, into output: inout Data) throws {
+  private static func encode(_ value: Value, into output: inout Data) throws {
     switch value {
-    case .string(let value): try encodeString(value, into: &output)
-    case .bool(let value): output.append(value ? 0xc3 : 0xc2)
-    case .null: output.append(0xc0)
-    case .number(let value): try encodeInteger(value, into: &output)
+    case .string(let value):
+      try encodeString(value, into: &output)
+    case .bool(let value):
+      output.append(value ? 0xc3 : 0xc2)
+    case .null:
+      output.append(0xc0)
+    case .number(let value):
+      try encodeInteger(value, into: &output)
     case .array(let values):
-      guard values.count <= 15 else { throw ValidationError.malformedData(reason: "MessagePack arrays over 15 values are not supported") }
+      guard values.count <= 15 else {
+        throw ValidationError.malformedData(reason: "MessagePack arrays over 15 values are not supported")
+      }
       output.append(UInt8(0x90 | values.count))
-      for value in values { try encode(value, into: &output) }
-    case .object(let values):
-      try encodeMap(values.map { ($0.key, $0.value) }, into: &output)
+      for value in values {
+        try encode(value, into: &output)
+      }
+    case .object(let object):
+      try encodeMap(object.fields, into: &output)
     }
   }
 
   private static func encodeString(_ value: String, into output: inout Data) throws {
     let bytes = Array(value.utf8)
-    guard bytes.count <= 31 else { throw ValidationError.malformedData(reason: "MessagePack strings over 31 bytes are not supported") }
+    guard bytes.count <= 31 else {
+      throw ValidationError.malformedData(reason: "MessagePack strings over 31 bytes are not supported")
+    }
     output.append(UInt8(0xa0 | bytes.count))
     output.append(contentsOf: bytes)
   }

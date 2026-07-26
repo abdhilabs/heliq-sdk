@@ -12,10 +12,9 @@ import HeliqSDK
 struct UserSignedActionTests {
   @Test func signsOfficialUsdTransferFixture() async throws {
     let signer = try Signer(privateKey: "0x0123456789012345678901234567890123456789012345678901234567890123")
-    let fields = transferFields
     let signature = try await signer.signUserSigned(
       primaryType: "HyperliquidTransaction:UsdSend",
-      fields: fields,
+      fields: transferFields,
       action: transferAction,
       isMainnet: false
     )
@@ -36,6 +35,32 @@ struct UserSignedActionTests {
 
     #expect(signature.r == "0x8363524c799e90ce9bc41022f7c39b4e9bdba786e5f9c72b20e43e1462c37cf9")
     #expect(signature.s == "0x58b1411a775938b83e29182e8ef74975f9054c8e97ebf5ec2dc8d51bfc893881")
+    #expect(signature.v == 28)
+  }
+
+  @Test func signsOfficialL1OrderFixture() async throws {
+    let signer = try Signer(privateKey: "0x0123456789012345678901234567890123456789012345678901234567890123")
+    let action = CanonicalMessagePack.Object([
+      ("type", .string("order")),
+      ("orders", .array([
+        .object(.init([
+          ("a", .number(1)),
+          ("b", .bool(true)),
+          ("p", .string("100")),
+          ("s", .string("100")),
+          ("r", .bool(false)),
+          ("t", .object(.init([
+            ("limit", .object(.init([("tif", .string("Gtc"))])))
+          ])))
+        ]))
+      ])),
+      ("grouping", .string("na"))
+    ])
+
+    let signature = try await signer.signL1(action: action, nonce: 0, isMainnet: true)
+
+    #expect(signature.r == "0xd65369825a9df5d80099e513cce430311d7d26ddf477f5b3a33d2806b100d78e")
+    #expect(signature.s == "0x2b54116ff64054968aa237c20ca9ff68000f977c93289157748a3162b6ea940e")
     #expect(signature.v == 28)
   }
 
