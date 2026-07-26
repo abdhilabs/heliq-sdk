@@ -189,7 +189,8 @@ struct WalletServiceTests {
     
     let walletService = try await WalletService(keyManager: keyManager)
     
-    #expect(walletService.address.count == 64)
+    #expect(walletService.address.count == 42)
+    #expect(walletService.address.hasPrefix("0x"))
   }
   
   @Test func testWalletService_init_whenKeyManagerThrows_throwsError() async throws {
@@ -229,7 +230,8 @@ struct KeyManagerTests {
     
     let address = try await keyManager.getAddress()
     
-    #expect(address.count == 64)
+    #expect(address.count == 42)
+    #expect(address.hasPrefix("0x"))
   }
   
   @Test func testKeyManager_initWithPrivateKey_invalidKey_throws() throws {

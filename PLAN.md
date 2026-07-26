@@ -201,20 +201,21 @@ Use `HeliqSDK.shared.raw` for every documented Hyperliquid Info or Exchange shap
 
 | Priority | Item | Status | Tracking boundary |
 |----------|------|--------|-------------------|
-| P0 | Native EIP-712 signing | ❌ Not implemented | `Signer` is a stub. Raw Exchange requires a caller-provided `SignatureTypes` signature. |
-| P0 | Golden signed-action payload fixtures | ❌ Not implemented | Compare every official action serialization/signing preimage against official SDK fixtures before claiming local signing support. |
-| P1 | Typed models for raw Info/Exchange responses | ⬜ Optional | Raw transport is complete; add models only for ergonomic, stable response surfaces. |
-| P1 | Typed convenience wrappers for remaining official API | ⬜ Optional | Promote raw calls to repositories/use cases based on demand; do not duplicate raw transport unnecessarily. |
-| P1 | `fastAssetCtxs` decode helper | ⬜ Optional | Feed is exposed unchanged; helper needs base64 + raw-DEFLATE + JSON decode. |
-| P2 | Pagination abstraction | ⬜ Deferred | Add only after official cursor pagination is required by a supported endpoint. |
-| P2 | DTO mapping layer | ⬜ Deferred | Current domain entities decode directly; introduce DTOs only when model evolution needs isolation. |
+| P0 | Native L1 and user-signed EIP-712 signing | ✅ Implemented | `Signer.signL1` and `Signer.signUserSigned` are golden-tested against official Python-SDK fixtures. |
+| P0 | Golden signed-action payload fixtures | ✅ Initial coverage | Official L1 mainnet/testnet and user-signed USD-transfer fixtures lock hash/signature behavior. Add a golden fixture whenever a new typed signed schema is introduced. |
+| P1 | Typed models for raw Info/Exchange responses | 🟡 Started | `HyperliquidMetaAndAssetCtxs`, `HyperliquidPageRequest`, and expanded `OrderStatus` are typed. Advanced evolving responses remain lossless `JSONValue`. |
+| P1 | Typed convenience wrappers for remaining official API | ⬜ Demand-driven | Raw transport is complete; promote stable, frequently-used calls to repositories/use cases without duplicating raw transport. |
+| P1 | `fastAssetCtxs` decode helper | ✅ Implemented | `FastAssetCtxDecoder` decodes the documented base64 raw-DEFLATE update into typed sparse fields. |
+| P2 | Pagination abstraction | 🟡 Started | `HyperliquidPageRequest` produces inclusive millisecond bounds. Automatic page collection remains endpoint-specific and caller-controlled. |
+| P2 | DTO mapping layer | ⬜ Deferred | Introduce endpoint DTOs only where stable public models need insulation from wire evolution. |
 
 ### 4.3 Security and correctness boundaries
 
-- No private key is accepted or serialized by raw Exchange transport.
-- Signed Exchange calls require an externally generated EIP-712 signature until native signing is implemented and fixture-verified.
-- `fastAssetCtxs` is delivered in its official compressed form; consumers own decompression today.
+- Raw Exchange transport never serializes or transmits a private key.
+- Native signing accepts a private key only in `Signer`; callers may continue supplying `SignatureTypes` for hardware wallets, contract wallets, or external signing services.
+- The generic user-signed API requires the official field schema and primary type explicitly; it refuses to infer schemas.
 - Every raw WebSocket unsubscribe carries the original subscription fields, including `user`, `coin`, `interval`, and `dex` when supplied.
+- `FastAssetCtxDecoder` supports the official raw-DEFLATE encoding and fails closed for unsupported future encodings.
 
 ---
 

@@ -715,10 +715,11 @@ Examples/HeliqSDKDemoUITests/
 - ✅ Integration tests for every typed Info/Exchange/WS convenience surface
 - ✅ Demo UI tests (HeliqSDKDemoUITests)
 
-### Deliberate boundaries
-- ⚠️ `Signer` is still a stub. Raw exchange actions require caller-provided EIP-712 signatures; the SDK does not fabricate signatures or serialize private keys.
-- ⚠️ Advanced transport responses are `JSONValue` to preserve upstream fields. Typed models remain available for the original core convenience surface.
-- ⚠️ `fastAssetCtxs` payload decompression is intentionally caller-owned; the raw subscription transport exposes the official feed unchanged.
+### Current boundaries
+- Native signing is covered by official golden vectors for L1 `Agent` actions and the USD-transfer user-signed schema. Callers supply schemas for additional user-signed action types; hardware and contract-wallet flows continue to supply `SignatureTypes` externally.
+- `HyperliquidMetaAndAssetCtxs`, `HyperliquidPageRequest`, and expanded `OrderStatus` provide the first typed raw boundary. Less common advanced endpoint responses remain intentionally lossless `JSONValue` until their public models are stabilized.
+- Pagination has an inclusive millisecond request value object; automatic multi-page collection remains caller-controlled because the protocol's endpoint-specific continuation semantics vary.
+- `FastAssetCtxDecoder` supports the documented raw-DEFLATE format. Unknown future compressed encodings intentionally fail rather than silently corrupt data.
 
 ## 10. Next Steps
 

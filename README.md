@@ -164,7 +164,7 @@ All official Info request types are available through `HyperliquidInfoType` and 
 
 All official signed Exchange actions are available through `HyperliquidExchangeActionType` and `.custom(String)`, including withdrawals, spot sends, USDC-class transfers, leverage/margin updates, batch modifications, TWAP, agent/builder approvals, vault/sub-account actions, delegation, Core deposits/withdrawals, multi-sig, and request-weight reservation.
 
-> **Signing boundary:** `Signer` is a pre-existing stub and is not used by the raw transport. Callers must provide an EIP-712 `SignatureTypes` value for `HyperliquidExchangeEnvelope`. The SDK never fabricates a signature or sends a private key.
+> **Signing:** `Signer` natively supports both official schemes: canonical-MessagePack L1 `Agent` signatures and caller-schema user-signed EIP-712 envelopes. Both are locked to upstream Python-SDK golden vectors. `HyperliquidExchangeEnvelope` still accepts caller-provided `SignatureTypes` for hardware wallets, contract wallets, and externally managed keys; the SDK never serializes or transmits a private key.
 
 ### WebSocket — typed convenience channels
 
@@ -172,7 +172,7 @@ All official signed Exchange actions are available through `HyperliquidExchangeA
 
 ### WebSocket — raw transport coverage
 
-All official subscriptions, including `notification`, `webData3`, `twapStates`, `clearinghouseState`, `openOrders`, user TWAP feeds, `spotState`, all-DEX state/context, outcome metadata, and compressed `fastAssetCtxs`, are available through `HyperliquidWebSocketSubscription`. User-scoped fields are carried explicitly in `parameters`.
+All official subscriptions, including `notification`, `webData3`, `twapStates`, `clearinghouseState`, `openOrders`, user TWAP feeds, `spotState`, all-DEX state/context, outcome metadata, and compressed `fastAssetCtxs`, are available through `HyperliquidWebSocketSubscription`. `FastAssetCtxDecoder` decodes the documented raw-DEFLATE payload into typed sparse asset-context updates. User-scoped fields are carried explicitly in `parameters`.
 
 ## Architecture
 
