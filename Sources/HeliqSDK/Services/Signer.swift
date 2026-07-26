@@ -10,6 +10,16 @@ import CryptoSwift
 import Web3Core
 import web3swift
 
+public struct HyperliquidEIP712Field: Sendable, Codable, Equatable {
+  public let name: String
+  public let type: String
+
+  public init(name: String, type: String) {
+    self.name = name
+    self.type = type
+  }
+}
+
 /// Native signer for Hyperliquid L1 actions. User-signed administrative actions
 /// remain explicit until each official EIP-712 schema has a golden fixture.
 public final class Signer: @unchecked Sendable {
@@ -61,6 +71,36 @@ public final class Signer: @unchecked Sendable {
     return hashInput.sha3(.keccak256)
   }
 
+  /// Signs an official user-signed Hyperliquid action (transfers, withdrawals,
+  /// agent approvals, and other schemas supplied by the caller).
+  public func signUserSigned(
+    primaryType: String,
+    fields: [HyperliquidEIP712Field],
+    action: [String: JSONValue],
+    isMainnet: Bool
+  ) async throws -> SignatureTypes {
+    guard !primaryType.isEmpty, !fields.isEmpty else {
+      throw SigningError.signingFailed(reason: "EIP-712 primary type and fields are required")
+    }
+    var message = action
+    message["signatureChainId"] = .string("0x66eee")
+    message["hyperliquidChain"] = .string(isMainnet ? "Mainnet" : "Testnet")
+    let typeFields = fields.map { ["name": $0.name, "type": $0.type] }
+    let domainFields: [[String: String]] = [
+      ["name": "name", "type": "string"], ["name": "version", "type": "string"],
+      ["name": "chainId", "type": "uint256"], ["name": "verifyingContract", "type": "address"]
+    ]
+    let payload: [String: Any] = [
+      "types": [primaryType: typeFields, "EIP712Domain": domainFields],
+      "primaryType": primaryType,
+      "domain": ["name": "HyperliquidSignTransaction", "version": "1", "chainId": 421_614, "verifyingContract": "0x0000000000000000000000000000000000000000"],
+      "message": try jsonObject(message)
+    ]
+    let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
+    let typedData = try EIP712Parser.parse(String(decoding: data, as: UTF8.self))
+    return try signature(typedData)
+  }
+
   /// Signs an official Hyperliquid L1 action using canonical MessagePack,
   /// the Exchange EIP-712 domain, and the protocol phantom Agent envelope.
   public func signL1(
@@ -75,6 +115,12 @@ public final class Signer: @unchecked Sendable {
     let typedData = try EIP712Parser.parse("""
     {"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Agent":[{"name":"source","type":"string"},{"name":"connectionId","type":"bytes32"}]},"primaryType":"Agent","domain":{"name":"Exchange","version":"1","chainId":1337,"verifyingContract":"0x0000000000000000000000000000000000000000"},"message":{"source":"\(isMainnet ? "a" : "b")","connectionId":"0x\(connectionID)"}}
     """)
+    return try signature(typedData)
+  }
+
+  public var address: String { account.address.lowercased() }
+
+  private func signature(_ typedData: EIP712TypedData) throws -> SignatureTypes {
     let rawSignature = try Web3Signer.signEIP712(typedData, keystore: keystore, account: account)
     guard rawSignature.count == 65 else { throw SigningError.signingFailed(reason: "Invalid compact signature") }
     return SignatureTypes(
@@ -85,7 +131,13 @@ public final class Signer: @unchecked Sendable {
     )
   }
 
-  public var address: String { account.address.lowercased() }
+  private func jsonObject(_ value: [String: JSONValue]) throws -> [String: Any] {
+    let data = try JSONEncoder().encode(value)
+    guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      throw SigningError.signingFailed(reason: "Unable to encode EIP-712 message")
+    }
+    return object
+  }
 
   private static func append(_ value: UInt64, to data: inout Data) {
     var bigEndian = value.bigEndian
