@@ -89,10 +89,9 @@ public struct Order: Sendable, Codable, Identifiable {
 }
 
 public enum OrderStatus: String, Sendable, Codable {
-  case open = "open"
-  case filled = "filled"
-  case cancelled = "cancelled"
-  case rejected = "rejected"
+  case open, filled, cancelled, rejected, triggered
+  case marginCanceled, vaultWithdrawalCanceled, openInterestCapCanceled
+  case selfTradeCanceled, reduceOnlyCanceled, siblingFilledCanceled
 }
 
 public struct UserFunding: Sendable, Codable {
