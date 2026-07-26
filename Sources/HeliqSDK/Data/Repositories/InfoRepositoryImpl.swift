@@ -93,15 +93,12 @@ public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
   }
   
   public func getCandleSnapshot(coin: String, interval: String, startTime: Date, endTime: Date) async throws -> [Candle] {
-    let body = InfoRequestBody(
-      type: "candleSnapshot",
-      user: nil,
+    let data = try HyperliquidInfoRequest.candleSnapshot(
       coin: coin,
       interval: interval,
-      startTime: Int(startTime.timeIntervalSince1970 * 1000),
-      endTime: Int(endTime.timeIntervalSince1970 * 1000)
-    )
-    let data = try JSONCoder.encode(body)
+      startTime: startTime,
+      endTime: endTime
+    ).data()
     let request = InfoAPIRequest(endpoint: .candleSnapshot, body: data)
     return try await apiClient.request(request) as [Candle]
   }

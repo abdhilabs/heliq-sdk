@@ -716,8 +716,8 @@ Examples/HeliqSDKDemoUITests/
 - ✅ Demo UI tests (HeliqSDKDemoUITests)
 
 ### Current boundaries
-- Native signing is covered by official golden vectors for L1 `Agent` actions and the USD-transfer user-signed schema. Callers supply schemas for additional user-signed action types; hardware and contract-wallet flows continue to supply `SignatureTypes` externally.
-- `HyperliquidMetaAndAssetCtxs`, `HyperliquidPageRequest`, and expanded `OrderStatus` provide the first typed raw boundary. Less common advanced endpoint responses remain intentionally lossless `JSONValue` until their public models are stabilized.
+- Native signing is covered by official golden vectors for L1 `Agent` actions and the USD-transfer user-signed schema. Other user-signed action schemas remain caller-supplied until each has a matching official fixture; hardware and contract-wallet flows continue to supply `SignatureTypes` externally.
+- The current typed Info surface still needs request/DTO corrections for official fills, candles, order status, open orders, and side-preserving L2 books. Raw `JSONValue` transport remains the safe full-coverage route during that work.
 - Pagination has an inclusive millisecond request value object; automatic multi-page collection remains caller-controlled because the protocol's endpoint-specific continuation semantics vary.
 - `FastAssetCtxDecoder` supports the documented raw-DEFLATE format. Unknown future compressed encodings intentionally fail rather than silently corrupt data.
 

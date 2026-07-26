@@ -52,6 +52,37 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
   public let parameters: [String: JSONValue]
   public init(type: HyperliquidInfoType, parameters: [String: JSONValue] = [:]) { self.type = type; self.parameters = parameters }
   public func body() -> [String: JSONValue] { parameters.merging(["type": .string(type.rawValue)]) { _, new in new } }
+  public func data() throws -> Data { try JSONEncoder().encode(body()) }
+
+  public static func openOrders(user: String, dex: String? = nil) -> Self {
+    var parameters: [String: JSONValue] = ["user": .string(user)]
+    if let dex { parameters["dex"] = .string(dex) }
+    return Self(type: .openOrders, parameters: parameters)
+  }
+
+  public static func orderStatus(user: String, oid: Int64) -> Self {
+    Self(type: .custom("orderStatus"), parameters: ["user": .string(user), "oid": .number(Double(oid))])
+  }
+
+  public static func userFillsByTime(user: String, startTime: Date, endTime: Date? = nil) -> Self {
+    var parameters: [String: JSONValue] = [
+      "user": .string(user),
+      "startTime": .number(Double(startTime.timeIntervalSince1970 * 1_000))
+    ]
+    if let endTime { parameters["endTime"] = .number(Double(endTime.timeIntervalSince1970 * 1_000)) }
+    return Self(type: .custom("userFillsByTime"), parameters: parameters)
+  }
+
+  public static func candleSnapshot(coin: String, interval: String, startTime: Date, endTime: Date) -> Self {
+    Self(type: .custom("candleSnapshot"), parameters: [
+      "req": .object([
+        "coin": .string(coin),
+        "interval": .string(interval),
+        "startTime": .number(Double(startTime.timeIntervalSince1970 * 1_000)),
+        "endTime": .number(Double(endTime.timeIntervalSince1970 * 1_000))
+      ])
+    ])
+  }
 }
 
 /// All signed `/exchange` action types currently documented by Hyperliquid.
@@ -97,6 +128,10 @@ public final class HyperliquidAPI: @unchecked Sendable {
   private let apiClient: APIClient
   public init(apiClient: APIClient) { self.apiClient = apiClient }
   public func info(_ request: HyperliquidInfoRequest) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/info", body: request.body())) }
+  public func openOrders(user: String, dex: String? = nil) async throws -> [HyperliquidOpenOrder] {
+    let response = try await info(.openOrders(user: user, dex: dex))
+    return try HyperliquidOpenOrder.decodeList(JSONEncoder().encode(response))
+  }
   public func exchange(_ envelope: HyperliquidExchangeEnvelope) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/exchange", body: envelope.body())) }
 }
 

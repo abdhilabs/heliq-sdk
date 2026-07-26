@@ -201,9 +201,9 @@ Use `HeliqSDK.shared.raw` for every documented Hyperliquid Info or Exchange shap
 
 | Priority | Item | Status | Tracking boundary |
 |----------|------|--------|-------------------|
-| P0 | Native L1 and user-signed EIP-712 signing | ✅ Implemented | `Signer.signL1` and `Signer.signUserSigned` are golden-tested against official Python-SDK fixtures. |
-| P0 | Golden signed-action payload fixtures | ✅ Initial coverage | Official L1 mainnet/testnet and user-signed USD-transfer fixtures lock hash/signature behavior. Add a golden fixture whenever a new typed signed schema is introduced. |
-| P1 | Typed models for raw Info/Exchange responses | 🟡 Started | `HyperliquidMetaAndAssetCtxs`, `HyperliquidPageRequest`, and expanded `OrderStatus` are typed. Advanced evolving responses remain lossless `JSONValue`. |
+| P0 | Native L1 and user-signed EIP-712 signing | 🟡 Partial | `Signer.signL1` is golden-tested for official L1 mainnet/testnet vectors; `Signer.signUserSigned` is golden-tested for USD transfer. Add official fixtures before claiming individual user-signed action schemas are verified. |
+| P0 | Golden signed-action payload fixtures | 🟡 Initial coverage | L1 mainnet/testnet and USD-transfer fixtures lock the two protocol paths. Remaining user-signed and typed Exchange action schemas need their own fixtures. |
+| P1 | Correct typed Info request/response mappings | ⬜ Remaining | Existing typed wrappers still need official `userFills`/`userFillsByTime`, nested `candleSnapshot.req`, `orderStatus(user, oid)`, open-order DTOs, and side-preserving L2 book mapping. |
 | P1 | Typed convenience wrappers for remaining official API | ⬜ Demand-driven | Raw transport is complete; promote stable, frequently-used calls to repositories/use cases without duplicating raw transport. |
 | P1 | `fastAssetCtxs` decode helper | ✅ Implemented | `FastAssetCtxDecoder` decodes the documented base64 raw-DEFLATE update into typed sparse fields. |
 | P2 | Pagination abstraction | 🟡 Started | `HyperliquidPageRequest` produces inclusive millisecond bounds. Automatic page collection remains endpoint-specific and caller-controlled. |

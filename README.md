@@ -164,7 +164,7 @@ All official Info request types are available through `HyperliquidInfoType` and 
 
 All official signed Exchange actions are available through `HyperliquidExchangeActionType` and `.custom(String)`, including withdrawals, spot sends, USDC-class transfers, leverage/margin updates, batch modifications, TWAP, agent/builder approvals, vault/sub-account actions, delegation, Core deposits/withdrawals, multi-sig, and request-weight reservation.
 
-> **Signing:** `Signer` natively supports both official schemes: canonical-MessagePack L1 `Agent` signatures and caller-schema user-signed EIP-712 envelopes. Both are locked to upstream Python-SDK golden vectors. `HyperliquidExchangeEnvelope` still accepts caller-provided `SignatureTypes` for hardware wallets, contract wallets, and externally managed keys; the SDK never serializes or transmits a private key.
+> **Signing:** `Signer` supports canonical-MessagePack L1 `Agent` signatures and caller-schema user-signed EIP-712 envelopes. Official golden vectors cover L1 mainnet/testnet and the USD-transfer user-signed schema; each further typed user-signed schema requires its own fixture before it is claimed verified. `HyperliquidExchangeEnvelope` still accepts caller-provided `SignatureTypes` for hardware wallets, contract wallets, and externally managed keys; the SDK never serializes or transmits a private key.
 
 ### WebSocket — typed convenience channels
 
