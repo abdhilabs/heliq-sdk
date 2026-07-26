@@ -112,11 +112,10 @@ public func subscribe(channel: String, payload: [String: Any]? = nil) throws {
     try send(jsonString)
   }
 
-  public func unsubscribe(channel: String) throws {
-    let unsubscription: [String: Any] = [
-      "method": "unsubscribe",
-      "subscription": ["type": channel]
-    ]
+  public func unsubscribe(channel: String, payload: [String: Any]? = nil) throws {
+    var subscription: [String: Any] = ["type": channel]
+    if let payload { for (key, value) in payload { subscription[key] = value } }
+    let unsubscription: [String: Any] = ["method": "unsubscribe", "subscription": subscription]
 
     guard let data = try? JSONSerialization.data(withJSONObject: unsubscription),
           let jsonString = String(data: data, encoding: .utf8) else {
@@ -136,6 +135,12 @@ public func subscribe(channel: String, payload: [String: Any]? = nil) throws {
   public func unsubscribe(_ subscription: HyperliquidWebSocketSubscription) throws {
     let message: [String: Any] = ["method": "unsubscribe", "subscription": subscription.payload()]
     let data = try JSONSerialization.data(withJSONObject: message)
+    guard let text = String(data: data, encoding: .utf8) else { throw NetworkError.invalidResponse }
+    try send(text)
+  }
+
+  public func post(_ request: HyperliquidWebSocketPostRequest) throws {
+    let data = try JSONSerialization.data(withJSONObject: request.object())
     guard let text = String(data: data, encoding: .utf8) else { throw NetworkError.invalidResponse }
     try send(text)
   }

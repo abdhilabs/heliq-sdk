@@ -2,8 +2,7 @@
 //  ExchangeIntegrationTests.swift
 //  HeliqSDKIntegrationTests
 //
-//  Live Hyperliquid testnet coverage for every implemented Exchange API method.
-//  Without a funded signing wallet these should error (signature/auth), not crash.
+//  Created by Abdhilabs on 05/04/26.
 //
 
 import Foundation

@@ -74,6 +74,13 @@ struct HyperliquidParityTransportTests {
     #expect(!manager.isSubscribed(to: subscription))
   }
 
+  @Test func legacySubscription_payloadCarriesExactUnsubscribeFields() {
+    let channel = SubscriptionChannel.candle(coin: "ETH", interval: "1h")
+    #expect(channel.channelName == "candle")
+    #expect(channel.payload?["coin"] as? String == "ETH")
+    #expect(channel.payload?["interval"] as? String == "1h")
+  }
+
   @Test func officialSurfaceEnums_coverKnownAdvancedEndpoints() {
     #expect(HyperliquidInfoType.borrowLendReserveState.rawValue == "borrowLendReserveState")
     #expect(HyperliquidExchangeActionType.twapOrder.rawValue == "twapOrder")

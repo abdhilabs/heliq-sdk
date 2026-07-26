@@ -37,7 +37,7 @@ public enum JSONValue: Sendable, Codable, Equatable, Hashable {
 /// All current documented `POST /info` types. `custom` supports newly released
 /// types without a blocking SDK release.
 public enum HyperliquidInfoType: Sendable, Hashable, Codable {
-  case allMids, openOrders, frontendOpenOrders, userFills, userFillsByTime, userRateLimit, orderStatus, l2Book, candleSnapshot, maxBuilderFee, historicalOrders, userTwapSliceFills, subAccounts, userStakingSummary, userStakingHistory, userStakingRewards, delegatorSummary, delegations, delegatorHistory, delegatorRewards, userRole, portfolio, userFees, referral, userState, spotUserState, clearinghouseState, meta, metaAndAssetCtxs, spotMeta, spotMetaAndAssetCtxs, assetCtxs, spotAssetCtxs, predictedFundings, perpsAtOpenInterestCap, vaultDetails, userVaultEquities, userNonFundingLedgerUpdates, queryOrderByOid, queryOrderByCloid, queryFills, queryUserFundings, getTime, fetchBuilderFee, maxBuilderFeeApproval, approvedBuilders, borrowLendUserState, borrowLendReserveState, allBorrowLendReserveStates, webData2, custom(String)
+  case allMids, openOrders, frontendOpenOrders, userFills, userFillsByTime, userRateLimit, orderStatus, l2Book, candleSnapshot, maxBuilderFee, historicalOrders, userTwapSliceFills, subAccounts, userStakingSummary, userStakingHistory, userStakingRewards, delegatorSummary, delegations, delegatorHistory, delegatorRewards, userRole, portfolio, userFees, referral, userState, spotUserState, clearinghouseState, meta, metaAndAssetCtxs, spotMeta, spotMetaAndAssetCtxs, assetCtxs, spotAssetCtxs, predictedFundings, perpsAtOpenInterestCap, vaultDetails, userVaultEquities, userNonFundingLedgerUpdates, queryOrderByOid, queryOrderByCloid, queryFills, queryUserFundings, getTime, fetchBuilderFee, maxBuilderFeeApproval, approvedBuilders, borrowLendUserState, borrowLendReserveState, allBorrowLendReserveStates, webData2, perpDexs, userDexAbstraction, userAbstraction, userFunding, fundingHistory, perpDeployAuctionStatus, activeAssetData, perpDexLimits, perpDexStatus, allPerpMetas, perpAnnotation, perpCategories, perpConciseAnnotations, spotClearinghouseState, spotDeployState, spotPairDeployAuctionStatus, tokenDetails, outcomeMeta, settledOutcome, custom(String)
 
   public var rawValue: String {
     switch self {
@@ -56,7 +56,7 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
 
 /// All signed `/exchange` action types currently documented by Hyperliquid.
 public enum HyperliquidExchangeActionType: Sendable, Hashable, Codable {
-  case order, cancel, cancelByCloid, scheduleCancel, modify, batchModify, updateLeverage, updateIsolatedMargin, usdSend, withdraw3, spotSend, usdClassTransfer, vaultTransfer, createSubAccount, subAccountTransfer, approveAgent, approveBuilderFee, updateBuilderFee, tokenDelegate, cDeposit, cWithdraw, twapOrder, twapCancel, setReferrer, convertToMultiSig, multiSig, reserveRequestWeight, noop, custom(String)
+  case order, cancel, cancelByCloid, scheduleCancel, modify, batchModify, updateLeverage, updateIsolatedMargin, agentSetAbstraction, userOutcome, validatorL1Stream, authorizeAqav2Role, claimRewards, usdSend, withdraw3, spotSend, usdClassTransfer, vaultTransfer, createSubAccount, subAccountTransfer, approveAgent, approveBuilderFee, updateBuilderFee, tokenDelegate, cDeposit, cWithdraw, twapOrder, twapCancel, setReferrer, convertToMultiSig, multiSig, reserveRequestWeight, noop, custom(String)
   public var rawValue: String { if case .custom(let v) = self { return v }; return String(describing: self) }
 }
 
@@ -98,4 +98,34 @@ public final class HyperliquidAPI: @unchecked Sendable {
   public init(apiClient: APIClient) { self.apiClient = apiClient }
   public func info(_ request: HyperliquidInfoRequest) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/info", body: request.body())) }
   public func exchange(_ envelope: HyperliquidExchangeEnvelope) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/exchange", body: envelope.body())) }
+}
+
+/// Official WebSocket HTTP-equivalent post request. Hyperliquid accepts both
+/// Info payloads and signed Exchange envelopes over the `post` method.
+public enum HyperliquidWebSocketPostRequest: Sendable {
+  case info(id: Int, request: HyperliquidInfoRequest)
+  case action(id: Int, envelope: HyperliquidExchangeEnvelope)
+
+  public func object() throws -> [String: Any] {
+    switch self {
+    case .info(let id, let request):
+      return [
+        "method": "post", "id": id,
+        "request": ["type": "info", "payload": try foundationObject(request.body())]
+      ]
+    case .action(let id, let envelope):
+      return [
+        "method": "post", "id": id,
+        "request": ["type": "action", "payload": try foundationObject(envelope.body())]
+      ]
+    }
+  }
+
+  private func foundationObject(_ body: [String: JSONValue]) throws -> [String: Any] {
+    let data = try JSONEncoder().encode(body)
+    guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+      throw ValidationError.malformedData(reason: "Unable to encode WebSocket post payload")
+    }
+    return result
+  }
 }

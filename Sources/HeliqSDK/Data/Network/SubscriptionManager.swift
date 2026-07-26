@@ -114,7 +114,7 @@ public final class SubscriptionManager: @unchecked Sendable {
     
     guard let service = webSocketService else { return }
     
-    try service.unsubscribe(channel: channel.channelName)
+    try service.unsubscribe(channel: channel.channelName, payload: channel.payload)
   }
   
   public func subscribe(to subscription: HyperliquidWebSocketSubscription) async throws {

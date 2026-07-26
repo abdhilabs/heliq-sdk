@@ -8,7 +8,7 @@ A Swift SDK for Hyperliquid DEX, built with Swift 6.0 and async/await concurrenc
 - **Swift 6 Concurrency**: Native async/await throughout the SDK
 - **WebSocket Support**: Real-time market data and user event subscriptions
 - **Type-Safe**: All entities conform to `Sendable` for Swift 6 data race safety
-- **Full Hyperliquid Transport Coverage**: Every documented Info type, signed Exchange action, and WebSocket subscription is representable through the lossless `raw` / `HyperliquidWebSocketSubscription` APIs. Core convenience repositories remain additive typed wrappers.
+- **Full Hyperliquid Transport Coverage**: Official Info (`/info`), Exchange (`/exchange`), WebSocket subscriptions, WebSocket `post` requests, exact unsubscribe payloads, and normal inbound `channel`/`data` events are supported through the lossless `raw` / `HyperliquidWebSocketSubscription` APIs. Core convenience repositories remain additive typed wrappers.
 
 > **Coverage note:** HeliqSDK provides core typed convenience repositories plus a full lossless transport layer. Hyperliquid responses evolve frequently, so advanced responses return `JSONValue` rather than lossy SDK models.
 

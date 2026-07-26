@@ -4,8 +4,6 @@
 //
 //  Created by Abdhilabs on 05/04/26.
 //
-//  UI tests for the example app — covers navigation and primary feature screens.
-//
 
 import XCTest
 

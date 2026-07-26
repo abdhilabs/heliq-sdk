@@ -56,6 +56,9 @@ public final class WebSocketMessageRouter: @unchecked Sendable {
           self.handlers.removeValue(forKey: channel)
         }
         
+      case .channelData(let channel, let payload):
+        queue.async { self.handlers[channel]?(payload) }
+
       case .data:
         break
       }

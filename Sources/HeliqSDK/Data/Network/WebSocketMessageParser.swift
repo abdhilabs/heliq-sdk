@@ -10,6 +10,7 @@ import Foundation
 public enum WebSocketMessage {
   case subscribe(channel: String, payload: [String: Any]?)
   case unsubscribe(channel: String)
+  case channelData(channel: String, data: Data)
   case data(Data)
   
   public var channel: String? {
@@ -17,6 +18,8 @@ public enum WebSocketMessage {
     case .subscribe(let channel, _):
       return channel
     case .unsubscribe(let channel):
+      return channel
+    case .channelData(let channel, _):
       return channel
     case .data:
       return nil
@@ -48,6 +51,11 @@ public final class WebSocketMessageParser {
       }
     }
     
+    if let channel = json["channel"] as? String, let payload = json["data"] {
+      let payloadData = try JSONSerialization.data(withJSONObject: payload)
+      return .channelData(channel: channel, data: payloadData)
+    }
+
     return .data(data)
   }
   
@@ -66,6 +74,9 @@ public final class WebSocketMessageParser {
       dict["method"] = "unsubscribe"
       dict["channel"] = channel
       
+    case .channelData(_, let data):
+      return data
+
     case .data(let data):
       return data
     }

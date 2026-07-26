@@ -2,7 +2,7 @@
 //  InfoIntegrationTests.swift
 //  HeliqSDKIntegrationTests
 //
-//  Live Hyperliquid testnet coverage for every implemented Info API method.
+//  Created by Abdhilabs on 05/04/26.
 //
 
 import Foundation

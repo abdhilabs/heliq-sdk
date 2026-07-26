@@ -178,95 +178,51 @@ HeliiqSDK/
 
 ---
 
-## 4. API Endpoints
+## 4. Hyperliquid API Parity Tracker
 
-> **Coverage status (2026-07-26 audit vs official Hyperliquid docs):**
-> SDK implements a **core subset**, not the full Hyperliquid surface.
-> See README “Hyperliquid API Coverage” and `FeatureCoverageTests` for the living matrix.
-> Gaps are intentional backlog items, not bugs in the docs.
+> **Last reconciled:** 2026-07-27 against the official Hyperliquid Info, Exchange, WebSocket subscriptions, and WebSocket post-request documentation.
+>
+> **Definition of parity:** Every official request/action/subscription is representable through a lossless raw transport. The original repository/use-case methods remain a typed convenience subset.
 
-### 4.1 Info API (`/info` - Read-only) — implemented
+| Surface | Status | Implementation | Verification |
+|---------|--------|----------------|--------------|
+| `POST /info` | ✅ Full transport parity | `HyperliquidInfoType`, `HyperliquidInfoRequest`, `HeliqSDK.shared.raw.info` | Official registry tests + live testnet raw request |
+| `POST /exchange` | ✅ Full transport parity | `HyperliquidExchangeActionType`, action/envelope transport | Unit encoding tests; requires caller-provided EIP-712 signature |
+| WebSocket subscriptions | ✅ Full transport parity | `HyperliquidWebSocketSubscription`, exact subscribe/unsubscribe payloads | Official registry + payload-preservation tests |
+| WebSocket inbound events | ✅ | Official `channel` / `data` messages route to handlers | Regression test |
+| WebSocket HTTP-equivalent posts | ✅ | `HyperliquidWebSocketPostRequest` and `WebSocketService.post` | Envelope encoding tests |
+| Typed convenience methods | ⚠️ Core subset | `InfoRepository`, `ExchangeRepository`, use cases | Existing unit/integration tests |
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `user_state` | User account state | Get user's perpetual account state |
-| `spot_user_state` | Spot account state | Get user's spot account state |
-| `all_mids` | All mid prices | Get all market mid prices |
-| `asset_ctxs` | Asset context | Get perpetual asset context |
-| `spot_asset_ctxs` | Spot asset context | Get spot asset context |
-| `candle_snapshot` | Candle data | Get historical candle data |
-| `l2_book` | Order book | Get L2 order book |
-| `query_order_by_oid` | Order by OID | Query order by order ID |
-| `query_order_by_cloid` | Order by CLOB ID | Query order by custom ID |
-| `query_fills` | Trade fills | Get user trade fills |
-| `query_user_fundings` | Funding payments | Get user funding payments |
-| `meta` | Perp metadata | Get perpetual metadata |
-| `spot_meta` | Spot metadata | Get spot metadata |
-| `get_time` | Server time | Get server time |
-| `fetch_builder_fee` | Builder fee | Get builder fee |
+### 4.1 Raw transport usage
 
-**Not yet implemented (official HL Info types):**
-`openOrders`, `frontendOpenOrders`, `userFills`/`userFillsByTime` (official names), `historicalOrders`, `orderStatus`, `portfolio`, `userRole`, `userFees`, `referral`, `subAccounts`, `vaultDetails`, `userVaultEquities`, `userTwapSliceFills`, `maxBuilderFee`, `approvedBuilders`, `clearinghouseState`, `metaAndAssetCtxs`, staking/delegator, borrow/lend, etc.
+Use `HeliqSDK.shared.raw` for every documented Hyperliquid Info or Exchange shape that does not have a typed convenience method. It accepts `JSONValue` parameters and returns `JSONValue`, preserving server fields without lossy model decoding.
 
-**Note**: If Hyperliquid API supports cursor-based pagination for list endpoints (fills, orders), implement `PaginatedRequest` protocol with `cursor` parameter.
+### 4.2 Remaining implementation work
 
-**DTO Mapping**: All DTOs implement `.toDomain()` method to convert to domain entities. (Currently entities are Codable directly — DTO layer deferred.)
+| Priority | Item | Status | Tracking boundary |
+|----------|------|--------|-------------------|
+| P0 | Native EIP-712 signing | ❌ Not implemented | `Signer` is a stub. Raw Exchange requires a caller-provided `SignatureTypes` signature. |
+| P0 | Golden signed-action payload fixtures | ❌ Not implemented | Compare every official action serialization/signing preimage against official SDK fixtures before claiming local signing support. |
+| P1 | Typed models for raw Info/Exchange responses | ⬜ Optional | Raw transport is complete; add models only for ergonomic, stable response surfaces. |
+| P1 | Typed convenience wrappers for remaining official API | ⬜ Optional | Promote raw calls to repositories/use cases based on demand; do not duplicate raw transport unnecessarily. |
+| P1 | `fastAssetCtxs` decode helper | ⬜ Optional | Feed is exposed unchanged; helper needs base64 + raw-DEFLATE + JSON decode. |
+| P2 | Pagination abstraction | ⬜ Deferred | Add only after official cursor pagination is required by a supported endpoint. |
+| P2 | DTO mapping layer | ⬜ Deferred | Current domain entities decode directly; introduce DTOs only when model evolution needs isolation. |
 
-### 4.2 Exchange API (`/exchange` - Signed) — implemented
+### 4.3 Security and correctness boundaries
 
-| Method | Description |
-|--------|-------------|
-| `order` | Place order |
-| `bulk_orders` | Place multiple orders |
-| `cancel` | Cancel by order ID |
-| `cancel_by_cloid` | Cancel by CLOB ID |
-| `cancel_all` | Cancel all orders |
-| `modify` | Modify order by OID |
-| `modify_by_cloid` | Modify order by CLOB ID |
-| `set_leverage` | Set account leverage |
-| `set_margin_mode` | Set cross/isolated margin |
-| `transfer` | Sub-account transfer |
-| `send_to_address` | Bridge withdrawal |
-| `spot_transfer` | Spot token transfer |
-| `vault_transfer` | Vault transfer |
-| `update_builder` | Update builder |
-| `schedule_cancel` | Schedule mass cancel |
-| `set_referrer` | Set referrer |
-| `convert_to_multi_sig_user` | Convert to multi-sig |
-| `usd_send` | USD transfer |
-
-**Not yet implemented (official HL Exchange actions):**
-`withdraw3`, `spotSend`, `usdClassTransfer`, `updateLeverage`/`updateIsolatedMargin`, `batchModify`, `twapOrder`/`twapCancel`, `approveAgent`, `approveBuilderFee`, `cDeposit`/`cWithdraw`, `tokenDelegate`, sub-account create/transfer, `sendAsset`, etc.
-
-**Wire-format caveat:** request body shapes are simplified vs the official Python SDK. Treat signed exchange as beta until golden-payload parity is complete.
+- No private key is accepted or serialized by raw Exchange transport.
+- Signed Exchange calls require an externally generated EIP-712 signature until native signing is implemented and fixture-verified.
+- `fastAssetCtxs` is delivered in its official compressed form; consumers own decompression today.
+- Every raw WebSocket unsubscribe carries the original subscription fields, including `user`, `coin`, `interval`, and `dex` when supplied.
 
 ---
 
 ## 5. WebSocket Subscriptions
 
-| Channel | Status | Description |
-|---------|--------|-------------|
-| `allMids` | ✅ | All mid prices |
-| `l2Book` | ✅ | Order book |
-| `trades` | ✅ | Trade updates |
-| `userEvents` | ✅ (no user payload yet) | User order/fill events |
-| `userFills` | ✅ (no user payload yet) | User fills |
-| `candle` | ✅ | Candlestick data |
-| `orderUpdates` | ✅ (no user payload yet) | Order updates |
-| `userFundings` | ✅ (no user payload yet) | Funding payments |
-| `userNonFundingLedgerUpdates` | ✅ (no user payload yet) | Ledger updates |
-| `webData2` | ✅ (no user payload yet) | Web data |
-| `bbo` | ✅ | Best bid/offer |
-| `activeAssetCtx` | ✅ | Asset context |
-| `activeAssetData` | ✅ (missing user field) | Asset data with user info |
-| `notification` | ❌ gap | User notifications |
-| `webData3` | ❌ gap | Web data v3 |
-| `twapStates` | ❌ gap | TWAP states |
-| `clearinghouseState` | ❌ gap | Clearinghouse state |
-| `openOrders` | ❌ gap | Open orders stream |
-| `userTwapSliceFills` / `userTwapHistory` | ❌ gap | TWAP fills/history |
-| `spotState` | ❌ gap | Spot state |
-| `allDexs*` / `fastAssetCtxs` / `outcomeMetaUpdates` | ❌ gap | Multi-dex / compressed feeds |
+The raw subscription API supports all official channels: `allMids`, `notification`, `webData3`, `twapStates`, `clearinghouseState`, `openOrders`, `candle`, `l2Book`, `trades`, `orderUpdates`, user event/fill/funding/ledger/TWAP feeds, `bbo`, asset context/data, `spotState`, all-DEX feeds, outcome metadata, and `fastAssetCtxs`.
+
+`SubscriptionChannel` remains the original typed convenience subset. Use `HyperliquidWebSocketSubscription` for user-scoped or newer official channels.
 
 ---
 
@@ -553,18 +509,17 @@ let infoOnlySDK = HeliqSDK.builder()
 
 | Item | Status | Notes |
 |------|--------|-------|
-| ExchangeRepositoryImpl | ✅ Done | All 18 methods implemented with TransactionBuilder |
-| Signer | ✅ Done | Stub implementation ready for web3swift integration |
-| WebSocket message→domain | ✅ Done | WebSocketDataParser parses core channels |
+| Core typed repositories and use cases | ✅ Done | Stable convenience subset for common Info and Exchange flows |
+| Lossless Hyperliquid raw transport | ✅ Done | Official Info, Exchange, WebSocket subscriptions, inbound events, and WS post requests; see §4 |
+| Native EIP-712 signer | ❌ Not implemented | Existing `Signer` is a stub; caller supplies `SignatureTypes` for signed raw Exchange actions |
+| Signed-action golden fixtures | ❌ Not implemented | Required before native signer can be considered correct |
+| Typed advanced API models | ⬜ Optional | Raw `JSONValue` transport is available; add typed models where consumer demand justifies them |
+| `fastAssetCtxs` decompression helper | ⬜ Optional | Raw compressed stream is available |
 | AssetMetaCache | ✅ Done | Actor-based cache with TTL support |
-| Full Hyperliquid API parity | ❌ Partial | Core subset only — see §4 gaps + README coverage matrix |
-| Exchange wire-format parity | ⚠️ Beta | Simplified bodies vs official Python SDK |
-| User payload on WS channels | ❌ Gap | `SubscriptionChannel.payload` omits `user` |
-| DTOs folder | ⬜ Skipped | Not needed - entities have direct Codable conformance |
-| .gitignore | ✅ Updated | Added SPM and build directories |
-| Swift 6 concurrency | ✅ Done | All components use async/await, DispatchQueue for thread safety |
+| DTO mapping layer | ⬜ Deferred | Direct Codable entities remain appropriate until model isolation is needed |
+| Swift 6 concurrency | ✅ Done | Async/await and isolated shared state |
 | Demo UI tests | ✅ Done | `HeliqSDKDemoUITests` target + scheme |
-| Feature coverage unit tests | ✅ Done | `FeatureCoverageTests` locks implemented/missing sets |
+| Official transport coverage tests | ✅ Done | Registry, payload, inbound-event, and live raw Info testnet coverage |
 
 ## 15. Testing Plan
 
@@ -572,4 +527,4 @@ See [TEST_PLAN.md](./TEST_PLAN.md) for full test specifications.
 
 ---
 
-**Core SDK scaffolding complete. Hyperliquid full-surface parity is tracked backlog, not done.**
+**Transport parity is complete. Production-ready native signing and optional typed ergonomics are tracked in §4.2.**

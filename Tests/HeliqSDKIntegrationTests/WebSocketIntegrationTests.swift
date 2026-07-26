@@ -2,7 +2,7 @@
 //  WebSocketIntegrationTests.swift
 //  HeliqSDKIntegrationTests
 //
-//  Live Hyperliquid testnet coverage for every SubscriptionChannel.
+//  Created by Abdhilabs on 05/04/26.
 //
 
 import Foundation
