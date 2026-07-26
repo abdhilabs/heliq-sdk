@@ -54,14 +54,15 @@ public enum CanonicalMessagePack {
   }
 
   private static func encodeInteger(_ value: Double, into output: inout Data) throws {
-    guard value.rounded() == value, value >= 0, value <= Double(UInt32.max) else {
+    guard value.rounded() == value, value >= 0, value <= Double(UInt64.max) else {
       throw ValidationError.malformedData(reason: "MessagePack signing values must be non-negative integral numbers")
     }
-    let integer = UInt32(value)
+    let integer = UInt64(value)
     if integer <= 0x7f { output.append(UInt8(integer)) }
-    else if integer <= UInt32(UInt8.max) { output.append(0xcc); output.append(UInt8(integer)) }
-    else if integer <= UInt32(UInt16.max) { output.append(0xcd); append(UInt16(integer), into: &output) }
-    else { output.append(0xce); append(integer, into: &output) }
+    else if integer <= UInt64(UInt8.max) { output.append(0xcc); output.append(UInt8(integer)) }
+    else if integer <= UInt64(UInt16.max) { output.append(0xcd); append(UInt16(integer), into: &output) }
+    else if integer <= UInt64(UInt32.max) { output.append(0xce); append(UInt32(integer), into: &output) }
+    else { output.append(0xcf); append(integer, into: &output) }
   }
 
   private static func append<T: FixedWidthInteger>(_ value: T, into output: inout Data) {
