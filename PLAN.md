@@ -514,7 +514,7 @@ let infoOnlySDK = HeliqSDK.builder()
 | Lossless Hyperliquid raw transport | ✅ Done | Official Info, Exchange, WebSocket subscriptions, inbound events, and WS post requests; see §4 |
 | Native EIP-712 signer | 🟡 Core paths implemented | Native canonical-MessagePack L1 `Agent` signing plus generic caller-schema user-signed EIP-712 envelopes. Official vectors cover L1 dummy mainnet/testnet, nested L1 orders, USD transfer, and bridge withdrawal. |
 | Signed-action golden fixtures | 🟡 Focused coverage | Official vectors lock the implemented L1 and user-signed paths. Further user-signed schemas need upstream fixtures before typed verification is claimed. |
-| Typed advanced API models | 🟡 Core corrections implemented | Typed candles, open orders, fills/time-window fills, L2 books, order status, pagination bounds, and `fastAssetCtxs`; raw `JSONValue` remains the full API surface. |
+| Typed advanced API models | 🟡 Core corrections implemented | Typed market metadata, multi-DEX mids, rate-limit status, trigger-aware frontend orders, candles, open orders, fills/time-window fills, L2 books, order status, pagination bounds, and `fastAssetCtxs`; raw `JSONValue` remains the full API surface. |
 | `fastAssetCtxs` decompression helper | ✅ Done | `FastAssetCtxDecoder` decodes documented base64 raw-DEFLATE payloads and fails closed for unsupported encodings. |
 | AssetMetaCache | ✅ Done | Actor-based cache with TTL support |
 | DTO mapping layer | 🟡 Endpoint-scoped | DTO boundaries isolate implemented typed models from wire shapes; add more only as stable typed wrappers are needed. |
