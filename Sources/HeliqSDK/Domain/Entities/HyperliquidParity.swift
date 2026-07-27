@@ -54,6 +54,10 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
   public func body() -> [String: JSONValue] { parameters.merging(["type": .string(type.rawValue)]) { _, new in new } }
   public func data() throws -> Data { try JSONEncoder().encode(body()) }
 
+  public static func userRateLimit(user: String) -> Self {
+    Self(type: .userRateLimit, parameters: ["user": .string(user)])
+  }
+
   public static func allMids(dex: String? = nil) -> Self {
     var parameters: [String: JSONValue] = [:]
     if let dex { parameters["dex"] = .string(dex) }
@@ -157,6 +161,11 @@ public final class HyperliquidAPI: @unchecked Sendable {
   private let apiClient: APIClient
   public init(apiClient: APIClient) { self.apiClient = apiClient }
   public func info(_ request: HyperliquidInfoRequest) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/info", body: request.body())) }
+  public func userRateLimit(user: String) async throws -> HyperliquidUserRateLimit {
+    let response = try await info(.userRateLimit(user: user))
+    return try HyperliquidUserRateLimit.decode(JSONEncoder().encode(response))
+  }
+
   public func allMids(dex: String? = nil) async throws -> [String: String] {
     let response = try await info(.allMids(dex: dex))
     return try JSONDecoder().decode([String: String].self, from: JSONEncoder().encode(response))
