@@ -38,7 +38,7 @@ import HeliqSDK
 HeliqSDK.shared.initialize { builder in
     builder.environment(.mainnet)  // or .testnet, .local
     builder.wallet(myWalletService)
-    builder.logging(.debug)        // optional; .off is the default
+    builder.logging(.verbose)      // optional; .disabled is the default
 }
 ```
 
@@ -47,14 +47,15 @@ HeliqSDK.shared.initialize { builder in
 Logging uses Apple OSLog and is disabled by default. Enable it at initialization with one of:
 
 ```swift
-.off    // default
-.error
-.warn
-.info
-.debug
+.disabled                         // default: no logs
+.debug    // [.error, .warning]
+.verbose  // [.error, .warning, .info]
+
+// Custom combinations are supported.
+builder.logging([.error, .info])
 ```
 
-Levels are cumulative and the latest SDK initialization replaces the active level. Logs record only safe operational metadata: category, endpoint path, retry attempt, HTTP status, elapsed milliseconds, response byte count, cache outcome, WebSocket lifecycle, and signing outcome. They never record request/response bodies, URLs/headers, addresses, signatures, nonces, or key material.
+`.debug` logs failures, retries, rate limits, and recoverable warnings. `.verbose` adds safe lifecycle and timing traces. The latest SDK initialization replaces the active level. Non-2xx response bodies are logged only at `.verbose`, capped at 16 KB with a truncation marker. Request bodies and successful response bodies are never logged.
 
 ### Fetch Market Data
 

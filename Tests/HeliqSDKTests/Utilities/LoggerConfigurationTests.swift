@@ -9,29 +9,35 @@ import Testing
 import HeliqSDK
 
 struct LoggerConfigurationTests {
-  @Test func builderDefaultsToLoggingOff() {
+  @Test func builderDefaultsToDisabledLogging() {
     _ = HeliqSDK.builder().wallet(TestWallet()).build()
-    #expect(Logger.shared.level == .off)
+    #expect(Logger.shared.level == .disabled)
   }
 
-  @Test func levelsAreOrderedForCumulativeFiltering() {
-    #expect(LogLevel.error < .warn)
-    #expect(LogLevel.warn < .info)
-    #expect(LogLevel.info < .debug)
-    #expect(LogLevel.off < .error)
+  @Test func debugPresetIncludesOnlyErrorsAndWarnings() {
+    #expect(LogLevel.debug.contains(.error))
+    #expect(LogLevel.debug.contains(.warning))
+    #expect(!LogLevel.debug.contains(.info))
   }
 
-  @Test func builderConfiguresLoggerLevel() {
-    _ = HeliqSDK.builder().wallet(TestWallet()).logging(.debug).build()
+  @Test func verbosePresetIncludesEveryEventSeverity() {
+    #expect(LogLevel.verbose.contains(.error))
+    #expect(LogLevel.verbose.contains(.warning))
+    #expect(LogLevel.verbose.contains(.info))
+  }
 
-    #expect(Logger.shared.level == .debug)
+  @Test func builderAcceptsCustomCombinations() {
+    let level: LogLevel = [.error, .info]
+    _ = HeliqSDK.builder().wallet(TestWallet()).logging(level).build()
+
+    #expect(Logger.shared.level == level)
   }
 
   @Test func latestBuildReplacesLoggerLevel() {
+    _ = HeliqSDK.builder().wallet(TestWallet()).logging(.verbose).build()
     _ = HeliqSDK.builder().wallet(TestWallet()).logging(.debug).build()
-    _ = HeliqSDK.builder().wallet(TestWallet()).logging(.error).build()
 
-    #expect(Logger.shared.level == .error)
+    #expect(Logger.shared.level == .debug)
   }
 
   private struct TestWallet: WalletServiceProtocol {

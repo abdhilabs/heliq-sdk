@@ -61,17 +61,21 @@ public final class APIClient: @unchecked Sendable {
           }
           
         case 429:
+          logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
           let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After").flatMap { Double($0) }
           throw APIError.rateLimited(retryAfter: retryAfter)
           
         case 400...499:
+          logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
           let errorMessage = String(data: data, encoding: .utf8)
           throw APIError.clientError(statusCode: httpResponse.statusCode, message: errorMessage)
           
         case 500...599:
+          logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
           throw APIError.serverError(statusCode: httpResponse.statusCode)
           
         default:
+          logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
           throw APIError.invalidResponse
         }
       } catch let error as HeliqError where error.isRetryable {
@@ -120,15 +124,29 @@ public final class APIClient: @unchecked Sendable {
     case 200...299:
       return data
     case 429:
+      logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
       let retryAfter = httpResponse.value(forHTTPHeaderField: "Retry-After").flatMap { Double($0) }
       throw APIError.rateLimited(retryAfter: retryAfter)
     case 400...499:
+      logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
       let errorMessage = String(data: data, encoding: .utf8)
       throw APIError.clientError(statusCode: httpResponse.statusCode, message: errorMessage)
     case 500...599:
+      logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
       throw APIError.serverError(statusCode: httpResponse.statusCode)
     default:
+      logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
       throw APIError.invalidResponse
     }
+  }
+
+  private func logHTTPFailure(path: String, status: Int, data: Data, elapsedMs: Int) {
+    Logger.shared.warning("response path=\(path) status=\(status) bytes=\(data.count) elapsed_ms=\(elapsedMs)", category: .network)
+
+    guard Logger.shared.level.contains(.info) else { return }
+    let limit = 16 * 1024
+    let truncated = data.count > limit
+    let body = String(decoding: data.prefix(limit), as: UTF8.self)
+    Logger.shared.info("response-error-body path=\(path) status=\(status) truncated=\(truncated) body=\(body)", category: .network)
   }
 }

@@ -153,22 +153,16 @@ struct StringExtensionsTests {
 }
 
 struct LoggerTests {
-  @Test func testLog_debug_doesNotThrow() throws {
-    let logger = Logger.shared
-    
-    logger.debug("test debug message")
-  }
-  
   @Test func testLog_info_doesNotThrow() throws {
     let logger = Logger.shared
-    
+
     logger.info("test info message")
   }
   
-  @Test func testLog_warn_doesNotThrow() throws {
+  @Test func testLog_warning_doesNotThrow() throws {
     let logger = Logger.shared
     
-    logger.warn("test warn message")
+    logger.warning("test warning message")
   }
   
   @Test func testLog_error_doesNotThrow() throws {

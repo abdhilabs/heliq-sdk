@@ -20,21 +20,21 @@ public actor AssetMetaCache {
   
   public func getAsset(coin: String) -> Int? {
     guard !isExpired() else {
-      Logger.shared.debug("cache lookup=asset outcome=miss", category: .cache)
+      Logger.shared.info("cache lookup=asset outcome=miss", category: .cache)
       return nil
     }
     let value = coinToAsset[coin]
-    Logger.shared.debug("cache lookup=asset outcome=\(value == nil ? "miss" : "hit")", category: .cache)
+    Logger.shared.info("cache lookup=asset outcome=\(value == nil ? "miss" : "hit")", category: .cache)
     return value
   }
   
   public func getCoin(asset: Int) -> String? {
     guard !isExpired() else {
-      Logger.shared.debug("cache lookup=coin outcome=miss", category: .cache)
+      Logger.shared.info("cache lookup=coin outcome=miss", category: .cache)
       return nil
     }
     let value = assetToCoin[asset]
-    Logger.shared.debug("cache lookup=coin outcome=\(value == nil ? "miss" : "hit")", category: .cache)
+    Logger.shared.info("cache lookup=coin outcome=\(value == nil ? "miss" : "hit")", category: .cache)
     return value
   }
   

@@ -52,7 +52,7 @@ public final class HeliqSDK: @unchecked Sendable {
 public final class Builder {
   private var _environment: HeliqEnvironment?
   private var _wallet: (any WalletServiceProtocol)?
-  private var _logging: LogLevel = .off
+  private var _logging: LogLevel = .disabled
   
   public init() {}
   

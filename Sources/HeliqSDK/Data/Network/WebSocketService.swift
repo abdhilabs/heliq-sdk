@@ -47,7 +47,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
   public func connect() {
     guard state == .disconnected else { return }
 
-    Logger.shared.debug("websocket lifecycle=connect-start", category: .webSocket)
+    Logger.shared.info("websocket lifecycle=connect-start", category: .webSocket)
     state = .connecting
 
     if urlSession == nil {
@@ -61,7 +61,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
   }
   
   public func disconnect() {
-    Logger.shared.debug("websocket lifecycle=disconnect", category: .webSocket)
+    Logger.shared.info("websocket lifecycle=disconnect", category: .webSocket)
     state = .disconnected
     webSocketTask?.cancel(with: .normalClosure, reason: nil)
     webSocketTask = nil
@@ -94,7 +94,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
   }
   
   public func subscribe(channel: String, payload: [String: Any]? = nil) throws {
-    Logger.shared.debug("websocket lifecycle=subscribe", category: .webSocket)
+    Logger.shared.info("websocket lifecycle=subscribe", category: .webSocket)
     var subscription: [String: Any] = [
       "method": "subscribe"
     ]
@@ -174,7 +174,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
   }
   
   private func handleDisconnection(error: Error?) {
-    Logger.shared.warn("websocket lifecycle=disconnected reason=\(error == nil ? "closed" : "error")", category: .webSocket)
+    Logger.shared.warning("websocket lifecycle=disconnected reason=\(error == nil ? "closed" : "error")", category: .webSocket)
     state = .disconnected
     _delegate?.webSocketDidDisconnect(error: error)
     
@@ -194,7 +194,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
 
 extension WebSocketService: URLSessionWebSocketDelegate {
   public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-    Logger.shared.debug("websocket lifecycle=connected", category: .webSocket)
+    Logger.shared.info("websocket lifecycle=connected", category: .webSocket)
     state = .connected
     healthMonitor.recordConnection()
     _delegate?.webSocketDidConnect()

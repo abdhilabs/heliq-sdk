@@ -16,16 +16,20 @@ public enum LogCategory: String, Sendable {
   case general = "General"
 }
 
-public enum LogLevel: Int, Sendable, Comparable {
-  case off = 0
-  case error = 1
-  case warn = 2
-  case info = 3
-  case debug = 4
+public struct LogLevel: OptionSet, Sendable, Hashable {
+  public let rawValue: Int
 
-  public static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
-    lhs.rawValue < rhs.rawValue
+  public init(rawValue: Int) {
+    self.rawValue = rawValue
   }
+
+  public static let error = LogLevel(rawValue: 1 << 0)
+  public static let warning = LogLevel(rawValue: 1 << 1)
+  public static let info = LogLevel(rawValue: 1 << 2)
+
+  public static let disabled: LogLevel = []
+  public static let debug: LogLevel = [.error, .warning]
+  public static let verbose: LogLevel = [.error, .warning, .info]
 }
 
 public final class Logger: @unchecked Sendable {
@@ -33,7 +37,7 @@ public final class Logger: @unchecked Sendable {
 
   private let subsystem = "com.heliq.SDK"
   private let lock = NSLock()
-  private var configuredLevel: LogLevel = .off
+  private var configuredLevel: LogLevel = .disabled
 
   private init() {}
 
@@ -49,40 +53,30 @@ public final class Logger: @unchecked Sendable {
     lock.unlock()
   }
 
-  public func debug(_ message: String, category: LogCategory = .general) {
-    log(message, level: .debug, category: category)
-  }
-
   public func info(_ message: String, category: LogCategory = .general) {
-    log(message, level: .info, category: category)
+    log(message, severity: .info, category: category)
   }
 
-  public func warn(_ message: String, category: LogCategory = .general) {
-    log(message, level: .warn, category: category)
+  public func warning(_ message: String, category: LogCategory = .general) {
+    log(message, severity: .warning, category: category)
   }
 
   public func error(_ message: String, category: LogCategory = .general) {
-    log(message, level: .error, category: category)
+    log(message, severity: .error, category: category)
   }
 
-  public func error(_ error: any Error, category: LogCategory = .general) {
-    log(error.localizedDescription, level: .error, category: category)
-  }
-
-  private func log(_ message: String, level: LogLevel, category: LogCategory) {
-    guard self.level >= level, level != .off else { return }
+  private func log(_ message: String, severity: LogLevel, category: LogCategory) {
+    guard level.contains(severity) else { return }
 
     let logger = os.Logger(subsystem: subsystem, category: category.rawValue)
-    switch level {
-    case .debug:
-      logger.debug("\(message, privacy: .public)")
+    switch severity {
     case .info:
       logger.info("\(message, privacy: .public)")
-    case .warn:
+    case .warning:
       logger.warning("\(message, privacy: .public)")
     case .error:
       logger.error("\(message, privacy: .public)")
-    case .off:
+    default:
       break
     }
   }
