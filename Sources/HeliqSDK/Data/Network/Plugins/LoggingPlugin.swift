@@ -24,11 +24,8 @@ public final class LoggingPlugin: LoggingPluginProtocol, @unchecked Sendable {
   }
   
   public func log(request: URLRequest) {
-    let message = """
-        [REQUEST] \(request.httpMethod ?? "UNKNOWN") \(request.url?.absoluteString ?? "unknown")
-        Headers: \(request.allHTTPHeaderFields?.description ?? "none")
-        """
-    
+    let message = "request method=\(request.httpMethod ?? "UNKNOWN") path=\(request.url?.path ?? "unknown")"
+
     switch request.httpMethod {
     case "GET":
       logger.debug(message, category: category)
@@ -45,9 +42,7 @@ public final class LoggingPlugin: LoggingPluginProtocol, @unchecked Sendable {
     
     guard let httpResponse = response as? HTTPURLResponse else { return }
     
-    let message = """
-        [RESPONSE] \(httpResponse.statusCode) \(httpResponse.url?.absoluteString ?? "unknown")
-        """
+    let message = "response status=\(httpResponse.statusCode) path=\(httpResponse.url?.path ?? "unknown") bytes=\(data?.count ?? 0)"
     
     if (200...299).contains(httpResponse.statusCode) {
       logger.debug(message, category: category)
@@ -66,6 +61,8 @@ public final class LoggingPlugin: LoggingPluginProtocol, @unchecked Sendable {
       logger.warn(message, category: category)
     case .error:
       logger.error(message, category: category)
+    case .off:
+      break
     }
   }
 }

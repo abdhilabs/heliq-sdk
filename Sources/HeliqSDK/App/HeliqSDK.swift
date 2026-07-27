@@ -52,6 +52,7 @@ public final class HeliqSDK: @unchecked Sendable {
 public final class Builder {
   private var _environment: HeliqEnvironment?
   private var _wallet: (any WalletServiceProtocol)?
+  private var _logging: LogLevel = .off
   
   public init() {}
   
@@ -60,6 +61,11 @@ public final class Builder {
     return self
   }
   
+  public func logging(_ level: LogLevel) -> Builder {
+    _logging = level
+    return self
+  }
+
   public func wallet(_ wallet: any WalletServiceProtocol) -> Builder {
     _wallet = wallet
     return self
@@ -72,6 +78,7 @@ public final class Builder {
       fatalError("Wallet must be set. Use builder.wallet(myWallet)")
     }
     
+    Logger.shared.configure(_logging)
     let container = DIContainer.create(environment: environment)
     return container
   }

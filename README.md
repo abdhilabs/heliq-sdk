@@ -38,8 +38,23 @@ import HeliqSDK
 HeliqSDK.shared.initialize { builder in
     builder.environment(.mainnet)  // or .testnet, .local
     builder.wallet(myWalletService)
+    builder.logging(.debug)        // optional; .off is the default
 }
 ```
+
+### Diagnostics logging
+
+Logging uses Apple OSLog and is disabled by default. Enable it at initialization with one of:
+
+```swift
+.off    // default
+.error
+.warn
+.info
+.debug
+```
+
+Levels are cumulative and the latest SDK initialization replaces the active level. Logs record only safe operational metadata: category, endpoint path, retry attempt, HTTP status, elapsed milliseconds, response byte count, cache outcome, WebSocket lifecycle, and signing outcome. They never record request/response bodies, URLs/headers, addresses, signatures, nonces, or key material.
 
 ### Fetch Market Data
 

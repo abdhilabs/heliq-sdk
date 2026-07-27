@@ -79,7 +79,9 @@ public final class Signer: @unchecked Sendable {
     action: [String: JSONValue],
     isMainnet: Bool
   ) async throws -> SignatureTypes {
-    guard !primaryType.isEmpty, !fields.isEmpty else {
+    let startedAt = Date()
+    do {
+      guard !primaryType.isEmpty, !fields.isEmpty else {
       throw SigningError.signingFailed(reason: "EIP-712 primary type and fields are required")
     }
     var message = action
@@ -98,7 +100,15 @@ public final class Signer: @unchecked Sendable {
     ]
     let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
     let typedData = try EIP712Parser.parse(String(decoding: data, as: UTF8.self))
-    return try signature(typedData)
+    let signed = try signature(typedData)
+    let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+    Logger.shared.info("signing operation=user-signed outcome=success elapsed_ms=\(elapsedMs)", category: .signing)
+    return signed
+    } catch {
+      let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+      Logger.shared.error("signing operation=user-signed outcome=failure elapsed_ms=\(elapsedMs)", category: .signing)
+      throw error
+    }
   }
 
   /// Signs an official Hyperliquid L1 action using canonical MessagePack,
@@ -110,12 +120,22 @@ public final class Signer: @unchecked Sendable {
     expiresAfter: Int64? = nil,
     isMainnet: Bool
   ) async throws -> SignatureTypes {
-    let hash = try Self.actionHash(action: action, nonce: nonce, vaultAddress: vaultAddress, expiresAfter: expiresAfter)
+    let startedAt = Date()
+    do {
+      let hash = try Self.actionHash(action: action, nonce: nonce, vaultAddress: vaultAddress, expiresAfter: expiresAfter)
     let connectionID = hash.hexString
     let typedData = try EIP712Parser.parse("""
     {"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Agent":[{"name":"source","type":"string"},{"name":"connectionId","type":"bytes32"}]},"primaryType":"Agent","domain":{"name":"Exchange","version":"1","chainId":1337,"verifyingContract":"0x0000000000000000000000000000000000000000"},"message":{"source":"\(isMainnet ? "a" : "b")","connectionId":"0x\(connectionID)"}}
     """)
-    return try signature(typedData)
+    let signed = try signature(typedData)
+    let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+    Logger.shared.info("signing operation=l1 outcome=success elapsed_ms=\(elapsedMs)", category: .signing)
+    return signed
+    } catch {
+      let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+      Logger.shared.error("signing operation=l1 outcome=failure elapsed_ms=\(elapsedMs)", category: .signing)
+      throw error
+    }
   }
 
   public var address: String { account.address.lowercased() }

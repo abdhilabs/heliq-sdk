@@ -34,10 +34,11 @@ public final class APIClient: @unchecked Sendable {
     
     try await rateLimitHandler.waitForToken(endpoint: router.path)
     
+    let startedAt = Date()
     var lastError: Error = NetworkError.unknown(underlying: nil)
     
     for attempt in 0..<retryPolicy.maxRetries {
-      Logger.shared.debug("request path=\(router.path) attempt=\(attempt + 1)", category: .network)
+      Logger.shared.info("request path=\(router.path) attempt=\(attempt + 1)", category: .network)
       do {
         let (data, response) = try await session.data(for: urlRequest)
         
@@ -45,7 +46,8 @@ public final class APIClient: @unchecked Sendable {
           throw NetworkError.invalidResponse
         }
         
-        Logger.shared.debug("response path=\(router.path) status=\(httpResponse.statusCode) bytes=\(data.count)", category: .network)
+        let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+        Logger.shared.info("response path=\(router.path) status=\(httpResponse.statusCode) bytes=\(data.count) elapsed_ms=\(elapsedMs)", category: .network)
 
         switch httpResponse.statusCode {
         case 200...299:
@@ -103,14 +105,16 @@ public final class APIClient: @unchecked Sendable {
     
     try await rateLimitHandler.waitForToken(endpoint: router.path)
     
-    Logger.shared.debug("request-data path=\(router.path)", category: .network)
+    let startedAt = Date()
+    Logger.shared.info("request-data path=\(router.path)", category: .network)
     let (data, response) = try await session.data(for: urlRequest)
     
     guard let httpResponse = response as? HTTPURLResponse else {
       throw NetworkError.invalidResponse
     }
 
-    Logger.shared.debug("response-data path=\(router.path) status=\(httpResponse.statusCode) bytes=\(data.count)", category: .network)
+    let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
+    Logger.shared.info("response-data path=\(router.path) status=\(httpResponse.statusCode) bytes=\(data.count) elapsed_ms=\(elapsedMs)", category: .network)
     
     switch httpResponse.statusCode {
     case 200...299:
