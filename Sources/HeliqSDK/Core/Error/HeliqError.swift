@@ -19,6 +19,7 @@ public protocol HeliqError: Error, Sendable {
 
 /// Provides default behavior for Heliq SDK errors.
 public extension HeliqError {
+  /// Returns `false` unless the concrete error opts into retry behavior.
   var isRetryable: Bool {
     false
   }
