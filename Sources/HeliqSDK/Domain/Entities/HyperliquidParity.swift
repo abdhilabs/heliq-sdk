@@ -67,6 +67,12 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
     return Self(type: .l2Book, parameters: parameters)
   }
 
+  public static func frontendOpenOrders(user: String, dex: String? = nil) -> Self {
+    var parameters: [String: JSONValue] = ["user": .string(user)]
+    if let dex { parameters["dex"] = .string(dex) }
+    return Self(type: .frontendOpenOrders, parameters: parameters)
+  }
+
   public static func openOrders(user: String, dex: String? = nil) -> Self {
     var parameters: [String: JSONValue] = ["user": .string(user)]
     if let dex { parameters["dex"] = .string(dex) }
@@ -175,6 +181,11 @@ public final class HyperliquidAPI: @unchecked Sendable {
     let response = try await info(.l2Book(coin: coin, nSigFigs: nSigFigs, mantissa: mantissa))
     return try HyperliquidL2BookSnapshot.decode(JSONEncoder().encode(response))
   }
+  public func frontendOpenOrders(user: String, dex: String? = nil) async throws -> [HyperliquidFrontendOpenOrder] {
+    let response = try await info(.frontendOpenOrders(user: user, dex: dex))
+    return try HyperliquidFrontendOpenOrder.decodeList(JSONEncoder().encode(response))
+  }
+
   public func openOrders(user: String, dex: String? = nil) async throws -> [HyperliquidOpenOrder] {
     let response = try await info(.openOrders(user: user, dex: dex))
     return try HyperliquidOpenOrder.decodeList(JSONEncoder().encode(response))
