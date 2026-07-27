@@ -54,6 +54,17 @@ final class HeliqSDKDemoUITests: XCTestCase {
                   app.staticTexts["All Mids"].waitForExistence(timeout: 3))
   }
 
+  func testInfo_loadAllMidsShowsResultOrError() {
+    app.staticTexts["Info"].tap()
+    XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))
+
+    app.buttons["Load All Mids"].tap()
+
+    let result = app.staticTexts["Tap to load"].waitForNonExistence(timeout: 15)
+    let error = app.staticTexts["Error"].waitForExistence(timeout: 15)
+    XCTAssertTrue(result || error, "Info request must show data or a visible error")
+  }
+
   func testInfo_segmentedControl_switchesSections() {
     app.staticTexts["Info"].tap()
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))

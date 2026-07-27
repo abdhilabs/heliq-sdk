@@ -63,6 +63,23 @@ struct InfoView: View {
       case .metadata:
         metadataSection
       }
+
+      if isLoading {
+        Section {
+          HStack {
+            ProgressView()
+            Text("Loading…")
+          }
+        }
+      }
+
+      if let errorMessage {
+        Section("Error") {
+          Text(errorMessage)
+            .foregroundStyle(.red)
+            .accessibilityIdentifier("info_error")
+        }
+      }
     }
     .navigationTitle("Info API")
     .refreshable {
@@ -404,36 +421,40 @@ struct InfoView: View {
     }
   }
   
-  private func loadAllMids() async {
+  private func performInfoRequest(_ operation: () async throws -> Void) async {
+    isLoading = true
+    errorMessage = nil
+    defer { isLoading = false }
+
     do {
-      allMids = try await sdkManager.sdk.info.getAllMids()
+      try await operation()
     } catch {
       errorMessage = error.localizedDescription
+    }
+  }
+
+  private func loadAllMids() async {
+    await performInfoRequest {
+      allMids = try await sdkManager.sdk.info.getAllMids()
     }
   }
   
   private func loadAssetCtxs() async {
-    do {
+    await performInfoRequest {
       assetCtxs = try await sdkManager.sdk.info.getAssetCtxs()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func loadSpotAssetCtxs() async {
-    do {
+    await performInfoRequest {
       spotAssetCtxs = try await sdkManager.sdk.info.getSpotAssetCtxs()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func loadL2Book() async {
     guard !selectedCoin.isEmpty else { return }
-    do {
+    await performInfoRequest {
       l2Book = try await sdkManager.sdk.info.getL2Book(coin: selectedCoin.uppercased())
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
@@ -441,102 +462,80 @@ struct InfoView: View {
     guard !candleCoinInput.isEmpty else { return }
     let endTime = Date()
     let startTime = endTime.addingTimeInterval(-3600 * 24)
-    do {
+    await performInfoRequest {
       candles = try await sdkManager.sdk.info.getCandleSnapshot(
         coin: candleCoinInput.uppercased(),
         interval: candleInterval,
         startTime: startTime,
         endTime: endTime
       )
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func getTime() async {
-    do {
+    await performInfoRequest {
       serverTime = try await sdkManager.sdk.info.getTime()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func loadUserState() async {
     guard !userAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       userState = try await sdkManager.sdk.info.getUserState(address: userAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func loadSpotUserState() async {
     guard !userAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       spotUserState = try await sdkManager.sdk.info.getSpotUserState(address: userAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func loadFills() async {
     guard !userAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       fills = try await sdkManager.sdk.info.queryFills(address: userAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func loadUserFundings() async {
     guard !userAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       userFundings = try await sdkManager.sdk.info.queryUserFundings(address: userAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func queryOrderByOid() async {
     guard !orderIdInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       orders = try await sdkManager.sdk.info.queryOrderByOid(orderId: orderIdInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func queryOrderByCloid() async {
     guard !cloidInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       orders = try await sdkManager.sdk.info.queryOrderByCloid(cloid: cloidInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func loadMeta() async {
-    do {
+    await performInfoRequest {
       meta = try await sdkManager.sdk.info.getMeta()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func loadSpotMeta() async {
-    do {
+    await performInfoRequest {
       spotMeta = try await sdkManager.sdk.info.getSpotMeta()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
   private func fetchBuilderFee() async {
     guard !builderAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       builderFee = try await sdkManager.sdk.info.fetchBuilderFee(builderAddress: builderAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
   
