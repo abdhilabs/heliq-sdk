@@ -145,6 +145,11 @@ public final class HyperliquidAPI: @unchecked Sendable {
   private let apiClient: APIClient
   public init(apiClient: APIClient) { self.apiClient = apiClient }
   public func info(_ request: HyperliquidInfoRequest) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/info", body: request.body())) }
+  public func metaAndAssetCtxs() async throws -> HyperliquidMetaAndAssetCtxs {
+    let response = try await info(.init(type: .metaAndAssetCtxs))
+    return try HyperliquidMetaAndAssetCtxs.decode(JSONEncoder().encode(response))
+  }
+
   public func orderStatus(user: String, oid: Int64) async throws -> HyperliquidOrderStatus {
     try await decodeOrderStatus(.orderStatus(user: user, oid: oid))
   }
