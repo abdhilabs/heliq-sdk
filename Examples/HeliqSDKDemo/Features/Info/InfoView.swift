@@ -24,7 +24,6 @@ struct InfoView: View {
   @State private var userFundings: [UserFunding] = []
   @State private var meta: Meta?
   @State private var spotMeta: Meta?
-  @State private var serverTime: Date?
   @State private var builderFee: BuilderFee?
   @State private var orders: [Order] = []
   
@@ -223,15 +222,6 @@ struct InfoView: View {
       }
     }
     
-    Section("Server Time") {
-      if let time = serverTime {
-        Text(formatDate(time))
-          .font(.system(.body, design: .monospaced))
-      }
-      Button("Get Server Time") {
-        Task { await getTime() }
-      }
-    }
   }
   
   @ViewBuilder
@@ -429,11 +419,14 @@ struct InfoView: View {
     do {
       try await operation()
     } catch {
+      let displayedError: String
       if let heliqError = error as? any HeliqError {
-        errorMessage = "\(heliqError.errorCode): \(heliqError.errorDescription)"
+        displayedError = "\(heliqError.errorCode): \(heliqError.errorDescription)"
       } else {
-        errorMessage = error.localizedDescription
+        displayedError = error.localizedDescription
       }
+      errorMessage = displayedError
+      Logger.shared.error("info-ui-error message=\(displayedError)", category: .general)
     }
   }
 
@@ -473,12 +466,6 @@ struct InfoView: View {
         startTime: startTime,
         endTime: endTime
       )
-    }
-  }
-  
-  private func getTime() async {
-    await performInfoRequest {
-      serverTime = try await sdkManager.sdk.info.getTime()
     }
   }
   

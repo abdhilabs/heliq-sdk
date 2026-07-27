@@ -108,18 +108,22 @@ public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
   
   /// Performs the get asset ctxs operation.
   public func getAssetCtxs() async throws -> [AssetContext] {
-    let body = InfoRequestBody(type: "assetCtxs", user: nil, coin: nil, interval: nil, startTime: nil, endTime: nil)
-    let data = try JSONCoder.encode(body)
-    let request = InfoAPIRequest(endpoint: .assetCtxs, body: data)
-    return try await apiClient.request(request) as [AssetContext]
+    let request = try HyperliquidRawRequest(
+      path: "/info",
+      body: HyperliquidInfoRequest(type: .metaAndAssetCtxs).body()
+    )
+    let data = try await apiClient.requestData(request)
+    return try HyperliquidMetaAndAssetCtxs.decode(data).sdkAssetContexts
   }
   
   /// Performs the get spot asset ctxs operation.
   public func getSpotAssetCtxs() async throws -> [SpotAssetContext] {
-    let body = InfoRequestBody(type: "spotAssetCtxs", user: nil, coin: nil, interval: nil, startTime: nil, endTime: nil)
-    let data = try JSONCoder.encode(body)
-    let request = InfoAPIRequest(endpoint: .spotAssetCtxs, body: data)
-    return try await apiClient.request(request) as [SpotAssetContext]
+    let request = try HyperliquidRawRequest(
+      path: "/info",
+      body: HyperliquidInfoRequest(type: .spotMetaAndAssetCtxs).body()
+    )
+    let data = try await apiClient.requestData(request)
+    return try HyperliquidSpotMetaAndAssetCtxs.decode(data).sdkAssetContexts
   }
   
   /// Performs the get candle snapshot operation.
@@ -136,10 +140,12 @@ public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
   
   /// Performs the get l2 book operation.
   public func getL2Book(coin: String) async throws -> L2Book {
-    let body = InfoRequestBody(type: "l2Book", user: nil, coin: coin, interval: nil, startTime: nil, endTime: nil)
-    let data = try JSONCoder.encode(body)
-    let request = InfoAPIRequest(endpoint: .l2Book, body: data)
-    return try await apiClient.request(request) as L2Book
+    let request = try HyperliquidRawRequest(
+      path: "/info",
+      body: HyperliquidInfoRequest.l2Book(coin: coin).body()
+    )
+    let data = try await apiClient.requestData(request)
+    return try L2Book.decodeLiveWire(data)
   }
   
   /// Performs the query order by oid operation.

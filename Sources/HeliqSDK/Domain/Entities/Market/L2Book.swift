@@ -22,6 +22,41 @@ public struct L2Book: Sendable, Codable {
     self.levels = levels
     self.timestamp = timestamp
   }
+
+  /// Decodes Hyperliquid's nested bid/ask L2 wire response.
+  public static func decodeLiveWire(_ data: Data) throws -> Self {
+    struct WireLevel: Decodable {
+      let px: String
+      let sz: String
+    }
+    struct WireBook: Decodable {
+      let coin: String
+      let time: Int
+      let levels: [[WireLevel]]
+    }
+
+    let wire = try JSONDecoder().decode(WireBook.self, from: data)
+    guard wire.levels.count == 2 else {
+      throw ValidationError.malformedData(reason: "l2Book requires bid and ask levels")
+    }
+    let bids = try wire.levels[0].map { level -> L2Level in
+      guard let price = Double(level.px), let size = Double(level.sz) else {
+        throw ValidationError.malformedData(reason: "l2Book bid has invalid decimal values")
+      }
+      return L2Level(price: price, size: size, side: .buy)
+    }
+    let asks = try wire.levels[1].map { level -> L2Level in
+      guard let price = Double(level.px), let size = Double(level.sz) else {
+        throw ValidationError.malformedData(reason: "l2Book ask has invalid decimal values")
+      }
+      return L2Level(price: price, size: size, side: .sell)
+    }
+    return L2Book(
+      coin: wire.coin,
+      levels: bids + asks,
+      timestamp: Date(timeIntervalSince1970: Double(wire.time) / 1_000)
+    )
+  }
 }
 
 /// Represents a value for l2 level.

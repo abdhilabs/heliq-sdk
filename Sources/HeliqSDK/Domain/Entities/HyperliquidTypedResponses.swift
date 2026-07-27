@@ -46,8 +46,8 @@ public struct HyperliquidMetaAndAssetCtxs: Sendable, Equatable {
     public let onlyIsolated: Bool?
   }
 
-  /// Represents a value for asset context.
-  public struct AssetContext: Sendable, Codable, Equatable {
+  /// Represents a live perpetual market context.
+  public struct LiveAssetContext: Sendable, Codable, Equatable {
     /// The funding associated with this value.
     public let funding: String?
     /// The mark px associated with this value.
@@ -61,7 +61,7 @@ public struct HyperliquidMetaAndAssetCtxs: Sendable, Equatable {
   /// The universe associated with this value.
   public let universe: [UniverseAsset]
   /// The asset contexts associated with this value.
-  public let assetContexts: [AssetContext]
+  public let assetContexts: [LiveAssetContext]
 
   /// Decodes this value from the supplied response data.
   public static func decode(_ data: Data) throws -> Self {
@@ -71,6 +71,66 @@ public struct HyperliquidMetaAndAssetCtxs: Sendable, Equatable {
     let metaData = try JSONEncoder().encode(root[0])
     let contextData = try JSONEncoder().encode(root[1])
     return .init(universe: try JSONDecoder().decode(Meta.self, from: metaData).universe,
-                 assetContexts: try JSONDecoder().decode([AssetContext].self, from: contextData))
+                 assetContexts: try JSONDecoder().decode([LiveAssetContext].self, from: contextData))
+  }
+
+  /// Converts the combined response into the SDK's demo-facing perpetual contexts.
+  public var sdkAssetContexts: [AssetContext] {
+    universe.enumerated().map { index, asset in
+      AssetContext(
+        asset: index,
+        name: asset.name,
+        szDecimals: asset.szDecimals,
+        weiDecimals: 8,
+        isPerpetual: true,
+        isSpot: false
+      )
+    }
+  }
+}
+
+/// Typed representation of the live `spotMetaAndAssetCtxs` response.
+public struct HyperliquidSpotMetaAndAssetCtxs: Sendable, Equatable {
+  /// A spot market in the protocol universe.
+  public struct UniverseAsset: Sendable, Codable, Equatable {
+    /// Display name for the spot market.
+    public let name: String
+    /// Protocol asset index for the spot market.
+    public let index: Int
+  }
+
+  /// A live spot market context.
+  public struct AssetContext: Sendable, Codable, Equatable {
+    /// Spot-market symbol supplied by the protocol.
+    public let coin: String?
+    /// Latest mark price supplied by the protocol.
+    public let markPx: String?
+  }
+
+  /// Spot market definitions.
+  public let universe: [UniverseAsset]
+  /// Live spot market contexts.
+  public let assetContexts: [AssetContext]
+
+  /// Decodes the two-element `spotMetaAndAssetCtxs` response.
+  public static func decode(_ data: Data) throws -> Self {
+    struct Meta: Decodable { let universe: [UniverseAsset] }
+    let root = try JSONDecoder().decode([JSONValue].self, from: data)
+    guard root.count == 2 else {
+      throw ValidationError.malformedData(reason: "spotMetaAndAssetCtxs requires metadata and contexts")
+    }
+    let metaData = try JSONEncoder().encode(root[0])
+    let contextData = try JSONEncoder().encode(root[1])
+    return .init(
+      universe: try JSONDecoder().decode(Meta.self, from: metaData).universe,
+      assetContexts: try JSONDecoder().decode([AssetContext].self, from: contextData)
+    )
+  }
+
+  /// Converts the combined response into the SDK's demo-facing spot contexts.
+  public var sdkAssetContexts: [SpotAssetContext] {
+    universe.map { asset in
+      SpotAssetContext(asset: asset.index, name: asset.name, maxWithdraw: 0, hold: 0)
+    }
   }
 }
