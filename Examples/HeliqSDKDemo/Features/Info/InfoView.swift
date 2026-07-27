@@ -429,7 +429,11 @@ struct InfoView: View {
     do {
       try await operation()
     } catch {
-      errorMessage = error.localizedDescription
+      if let heliqError = error as? any HeliqError {
+        errorMessage = "\(heliqError.errorCode): \(heliqError.errorDescription)"
+      } else {
+        errorMessage = error.localizedDescription
+      }
     }
   }
 
