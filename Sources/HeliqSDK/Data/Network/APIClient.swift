@@ -59,7 +59,7 @@ public final class APIClient: @unchecked Sendable {
           do {
             return try decoder.decode(T.self, from: data)
           } catch {
-            Logger.shared.error("decode-failed path=\(router.path) error=\(error.localizedDescription)", category: .network)
+            Logger.shared.error("decode-failed path=\(router.path) code=API_DECODING_FAILED", category: .network)
             throw APIError.decodingFailed(underlying: error)
           }
           

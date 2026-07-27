@@ -72,7 +72,7 @@ public final class WebSocketMessageRouter: @unchecked Sendable {
         break
       }
     } catch {
-      Logger.shared.error("Failed to route WebSocket message: \(error.localizedDescription)", category: .webSocket)
+      Logger.shared.error("websocket-route-failed code=WEBSOCKET_ROUTE_FAILED", category: .webSocket)
     }
   }
   
