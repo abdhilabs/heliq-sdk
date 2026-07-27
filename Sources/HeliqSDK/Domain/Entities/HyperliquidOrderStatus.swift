@@ -9,21 +9,37 @@ import Foundation
 
 /// Typed response for Hyperliquid's `orderStatus` Info request.
 public struct HyperliquidOrderStatus: Sendable, Equatable {
+  /// Represents a value for order.
   public struct Order: Sendable, Equatable {
+    /// The coin associated with this value.
     public let coin: String
+    /// The side associated with this value.
     public let side: String
+    /// The limit price associated with this value.
     public let limitPrice: String
+    /// The size associated with this value.
     public let size: String
+    /// The order i d associated with this value.
     public let orderID: Int64
+    /// The timestamp associated with this value.
     public let timestamp: Date
+    /// The trigger condition associated with this value.
     public let triggerCondition: String
+    /// The is trigger associated with this value.
     public let isTrigger: Bool
+    /// The trigger price associated with this value.
     public let triggerPrice: String
+    /// The is position tpsl associated with this value.
     public let isPositionTpsl: Bool
+    /// The reduce only associated with this value.
     public let reduceOnly: Bool
+    /// The order type associated with this value.
     public let orderType: String
+    /// The original size associated with this value.
     public let originalSize: String
+    /// The time in force associated with this value.
     public let timeInForce: String
+    /// The cloid associated with this value.
     public let cloid: String?
 
     fileprivate init(_ dto: OrderDTO) {
@@ -45,11 +61,16 @@ public struct HyperliquidOrderStatus: Sendable, Equatable {
     }
   }
 
+  /// The status associated with this value.
   public let status: String
+  /// The order associated with this value.
   public let order: Order?
+  /// The status timestamp associated with this value.
   public let statusTimestamp: Date?
+  /// The is known order value.
   public var isKnownOrder: Bool { order != nil }
 
+  /// Decodes this value from the supplied response data.
   public static func decode(_ data: Data) throws -> Self {
     let dto = try JSONDecoder().decode(DTO.self, from: data)
     guard let container = dto.order else {

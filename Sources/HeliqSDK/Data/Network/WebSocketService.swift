@@ -7,20 +7,31 @@
 
 import Foundation
 
+/// Defines web socket state values.
 public enum WebSocketState: Sendable {
+  /// The `disconnected` option.
   case disconnected
+  /// The `connecting` option.
   case connecting
+  /// The `connected` option.
   case connected
+  /// The `reconnecting` option.
   case reconnecting
 }
 
+/// Defines requirements for web socket service delegate implementations.
 public protocol WebSocketServiceDelegate: AnyObject, Sendable {
+  /// Performs the web socket did connect operation.
   func webSocketDidConnect()
+  /// Performs the web socket did disconnect operation.
   func webSocketDidDisconnect(error: Error?)
+  /// Performs the web socket did receive message operation.
   func webSocketDidReceiveMessage(_ message: Data)
+  /// Performs the web socket did receive error operation.
   func webSocketDidReceiveError(_ error: Error)
 }
 
+/// Provides web socket service functionality.
 public final class WebSocketService: NSObject, @unchecked Sendable {
   private var webSocketTask: URLSessionWebSocketTask?
   private var urlSession: URLSession?
@@ -30,11 +41,13 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
   private let reconnectHandler: WebSocketReconnectionHandler
   private let healthMonitor: WebSocketHealthMonitor
   
+  /// Public SDK API.
   public weak var webSocketDelegate: (any WebSocketServiceDelegate)? {
     get { _delegate }
     set { _delegate = newValue }
   }
   
+  /// Creates a web socket service.
   public init(url: URL, delegate: (any WebSocketServiceDelegate)? = nil) {
     self.url = url
     self._delegate = delegate
@@ -44,6 +57,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     self.urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
   }
   
+  /// Performs the connect operation.
   public func connect() {
     guard state == .disconnected else { return }
 
@@ -60,6 +74,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     receiveMessage()
   }
   
+  /// Performs the disconnect operation.
   public func disconnect() {
     Logger.shared.info("websocket lifecycle=disconnect", category: .webSocket)
     state = .disconnected
@@ -69,6 +84,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     urlSession = nil
   }
   
+  /// Performs the send operation.
   public func send(_ data: Data) throws {
     guard state == .connected || state == .connecting else {
       throw NetworkError.invalidResponse
@@ -81,6 +97,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     }
   }
   
+  /// Performs the send operation.
   public func send(_ message: String) throws {
     guard state == .connected || state == .connecting else {
       throw NetworkError.invalidResponse
@@ -93,6 +110,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     }
   }
   
+  /// Performs the subscribe operation.
   public func subscribe(channel: String, payload: [String: Any]? = nil) throws {
     Logger.shared.info("websocket lifecycle=subscribe", category: .webSocket)
     var subscription: [String: Any] = [
@@ -115,6 +133,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     try send(jsonString)
   }
 
+  /// Performs the unsubscribe operation.
   public func unsubscribe(channel: String, payload: [String: Any]? = nil) throws {
     var subscription: [String: Any] = ["type": channel]
     if let payload { for (key, value) in payload { subscription[key] = value } }
@@ -128,6 +147,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     try send(jsonString)
   }
   
+  /// Performs the subscribe operation.
   public func subscribe(_ subscription: HyperliquidWebSocketSubscription) throws {
     let message: [String: Any] = ["method": "subscribe", "subscription": subscription.payload()]
     let data = try JSONSerialization.data(withJSONObject: message)
@@ -135,6 +155,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     try send(text)
   }
 
+  /// Performs the unsubscribe operation.
   public func unsubscribe(_ subscription: HyperliquidWebSocketSubscription) throws {
     let message: [String: Any] = ["method": "unsubscribe", "subscription": subscription.payload()]
     let data = try JSONSerialization.data(withJSONObject: message)
@@ -142,6 +163,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
     try send(text)
   }
 
+  /// Performs the post operation.
   public func post(_ request: HyperliquidWebSocketPostRequest) throws {
     let data = try JSONSerialization.data(withJSONObject: request.object())
     guard let text = String(data: data, encoding: .utf8) else { throw NetworkError.invalidResponse }
@@ -193,6 +215,7 @@ public final class WebSocketService: NSObject, @unchecked Sendable {
 }
 
 extension WebSocketService: URLSessionWebSocketDelegate {
+  /// Performs the url session operation.
   public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
     Logger.shared.info("websocket lifecycle=connected", category: .webSocket)
     state = .connected
@@ -200,12 +223,14 @@ extension WebSocketService: URLSessionWebSocketDelegate {
     _delegate?.webSocketDidConnect()
   }
   
+  /// Performs the url session operation.
   public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
     handleDisconnection(error: nil)
   }
 }
 
 extension WebSocketService: URLSessionTaskDelegate {
+  /// Performs the url session operation.
   public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
     if let error = error {
       _delegate?.webSocketDidReceiveError(error)

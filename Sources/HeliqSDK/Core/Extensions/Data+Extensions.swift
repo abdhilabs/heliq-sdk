@@ -7,11 +7,14 @@
 
 import Foundation
 
+/// Adds SDK-oriented conversion utilities to `Data`.
 public extension Data {
+  /// Lowercase hexadecimal representation of the data.
   var hexString: String {
     map { String(format: "%02x", $0) }.joined()
   }
   
+  /// Creates data from a hexadecimal string with an optional `0x` prefix.
   init?(hexString: String) {
     let hex = hexString.hasPrefix("0x") ? String(hexString.dropFirst(2)) : hexString
     let length = hex.count / 2
@@ -30,6 +33,7 @@ public extension Data {
     self = data
   }
   
+  /// Pretty-printed JSON representation, if the data contains valid JSON.
   var prettyPrintedJSON: String? {
     guard let object = try? JSONSerialization.jsonObject(with: self, options: []),
           let data = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
@@ -39,6 +43,7 @@ public extension Data {
     return string
   }
   
+  /// Decodes the data as a string using the specified encoding.
   func toString(encoding: String.Encoding = .utf8) -> String? {
     String(data: self, encoding: encoding)
   }

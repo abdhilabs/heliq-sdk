@@ -7,15 +7,24 @@
 
 import Foundation
 
+/// Describes signing failures returned by the SDK.
 public enum SigningError: HeliqError, Sendable {
+  /// Private-key material is invalid.
   case invalidPrivateKey
+  /// Signature data is invalid.
   case invalidSignature
+  /// Signature verification failed.
   case signatureVerificationFailed
+  /// Signing failed for the given reason.
   case signingFailed(reason: String)
+  /// User rejected the signing request.
   case userRejected
+  /// Required signing key was unavailable.
   case keyNotFound
+  /// Requested signature format is unsupported.
   case unsupportedSignatureType
   
+  /// Stable machine-readable code for this error.
   public var errorCode: String {
     switch self {
     case .invalidPrivateKey:
@@ -35,6 +44,7 @@ public enum SigningError: HeliqError, Sendable {
     }
   }
   
+  /// Human-readable description of this error.
   public var errorDescription: String {
     switch self {
     case .invalidPrivateKey:
@@ -54,6 +64,7 @@ public enum SigningError: HeliqError, Sendable {
     }
   }
   
+  /// Whether retrying the failed operation may succeed.
   public var isRetryable: Bool {
     switch self {
     case .userRejected:

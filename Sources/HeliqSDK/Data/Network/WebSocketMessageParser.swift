@@ -7,12 +7,18 @@
 
 import Foundation
 
+/// Defines web socket message values.
 public enum WebSocketMessage {
+  /// The `subscribe` option.
   case subscribe(channel: String, payload: [String: Any]?)
+  /// The `unsubscribe` option.
   case unsubscribe(channel: String)
+  /// The `channelData` option.
   case channelData(channel: String, data: Data)
+  /// The `data` option.
   case data(Data)
   
+  /// The channel.
   public var channel: String? {
     switch self {
     case .subscribe(let channel, _):
@@ -27,9 +33,12 @@ public enum WebSocketMessage {
   }
 }
 
+/// Provides web socket message parser functionality.
 public final class WebSocketMessageParser {
+  /// Creates a web socket message parser.
   public init() {}
   
+  /// Performs the parse operation.
   public func parse(_ data: Data) throws -> WebSocketMessage {
     guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
       throw ValidationError.malformedData(reason: "Invalid JSON")
@@ -59,6 +68,7 @@ public final class WebSocketMessageParser {
     return .data(data)
   }
   
+  /// Performs the encode operation.
   public func encode(_ message: WebSocketMessage) throws -> Data {
     var dict: [String: Any] = [:]
     

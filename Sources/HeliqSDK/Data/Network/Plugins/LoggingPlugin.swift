@@ -7,26 +7,34 @@
 
 import Foundation
 
+/// Defines requirements for logging plugin protocol implementations.
 public protocol LoggingPluginProtocol: Sendable {
+  /// Performs the log operation.
   func log(request: URLRequest)
+  /// Performs the log operation.
   func log(response: URLResponse, data: Data?, error: Error?)
+  /// Performs the log operation.
   func log(message: String, level: LogLevel)
 }
 
+/// Provides logging plugin functionality.
 public final class LoggingPlugin: LoggingPluginProtocol, @unchecked Sendable {
   private let logger: Logger
   private let category: LogCategory
 
+  /// Creates a logging plugin.
   public init(logger: Logger = .shared, category: LogCategory = .network) {
     self.logger = logger
     self.category = category
   }
 
+  /// Performs the log operation.
   public func log(request: URLRequest) {
     let message = "request method=\(request.httpMethod ?? "UNKNOWN") path=\(request.url?.path ?? "unknown")"
     logger.info(message, category: category)
   }
 
+  /// Performs the log operation.
   public func log(response: URLResponse, data: Data?, error: Error?) {
     if error != nil {
       logger.error("response outcome=failure", category: category)
@@ -43,6 +51,7 @@ public final class LoggingPlugin: LoggingPluginProtocol, @unchecked Sendable {
     }
   }
 
+  /// Performs the log operation.
   public func log(message: String, level: LogLevel) {
     if level.contains(.error) {
       logger.error(message, category: category)

@@ -9,22 +9,38 @@ import Foundation
 
 /// A precision-preserving projection of Hyperliquid's `userFills` response.
 public struct HyperliquidUserFill: Sendable, Equatable {
+  /// The closed pnl associated with this value.
   public let closedPnl: String
+  /// The coin associated with this value.
   public let coin: String
+  /// The crossed associated with this value.
   public let crossed: Bool
+  /// The direction associated with this value.
   public let direction: String
+  /// The hash associated with this value.
   public let hash: String
+  /// The order i d associated with this value.
   public let orderID: Int64
+  /// The price associated with this value.
   public let price: String
+  /// The side associated with this value.
   public let side: String
+  /// The start position associated with this value.
   public let startPosition: String
+  /// The size associated with this value.
   public let size: String
+  /// The timestamp associated with this value.
   public let timestamp: Date
+  /// The fee associated with this value.
   public let fee: String
+  /// The fee token associated with this value.
   public let feeToken: String
+  /// The builder fee associated with this value.
   public let builderFee: String?
+  /// The trade i d associated with this value.
   public let tradeID: Int64
 
+  /// Decodes values from the supplied response data.
   public static func decodeList(_ data: Data) throws -> [Self] {
     try JSONDecoder().decode([DTO].self, from: data).map(Self.init)
   }

@@ -26,6 +26,9 @@ jobs:
       - name: Generate Xcode project
         run: brew install xcodegen && xcodegen generate --spec project.yml
 
+      - name: Validate public symbol documentation
+        run: python3 Scripts/check_docc_coverage.py
+
       - name: Build DocC archive
         run: |
           xcodebuild docbuild \

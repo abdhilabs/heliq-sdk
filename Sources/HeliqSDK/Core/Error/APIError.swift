@@ -7,14 +7,22 @@
 
 import Foundation
 
+/// Describes failures returned by the Hyperliquid HTTP API.
 public enum APIError: HeliqError, Sendable {
+  /// Request exceeded the API rate limit, optionally with a retry delay.
   case rateLimited(retryAfter: TimeInterval?)
+  /// Server returned a 5xx response.
   case serverError(statusCode: Int)
+  /// Server returned a client-error response.
   case clientError(statusCode: Int, message: String?)
+  /// Response was invalid or incomplete.
   case invalidResponse
+  /// Response data could not be decoded.
   case decodingFailed(underlying: Error?)
+  /// Hyperliquid returned an application-level error.
   case hyperliquidError(code: Int, message: String)
   
+  /// Stable machine-readable code for this error.
   public var errorCode: String {
     switch self {
     case .rateLimited:
@@ -32,6 +40,7 @@ public enum APIError: HeliqError, Sendable {
     }
   }
   
+  /// Human-readable description of this error.
   public var errorDescription: String {
     switch self {
     case .rateLimited(let retryAfter):
@@ -58,6 +67,7 @@ public enum APIError: HeliqError, Sendable {
     }
   }
   
+  /// Whether retrying the failed operation may succeed.
   public var isRetryable: Bool {
     switch self {
     case .rateLimited:

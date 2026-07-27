@@ -7,12 +7,14 @@
 
 import Foundation
 
+/// Provides apiclient functionality.
 public final class APIClient: @unchecked Sendable {
   private let session: URLSession
   private let environment: HeliqEnvironment
   private let retryPolicy: RetryPolicy
   private let rateLimitHandler: RateLimitHandler
   
+  /// Creates a apiclient.
   public init(
     environment: HeliqEnvironment,
     session: URLSession = .shared,
@@ -25,6 +27,7 @@ public final class APIClient: @unchecked Sendable {
     self.rateLimitHandler = rateLimitHandler
   }
   
+  /// Performs the request operation.
   public func request<T: Decodable>(_ router: any APIRouterProtocol) async throws -> T {
     let request = try router.urlRequest(baseURL: Constants.API.baseURL(for: environment))
     
@@ -100,6 +103,7 @@ public final class APIClient: @unchecked Sendable {
     throw lastError
   }
   
+  /// Performs the request data operation.
   public func requestData(_ router: any APIRouterProtocol) async throws -> Data {
     let request = try router.urlRequest(baseURL: Constants.API.baseURL(for: environment))
     

@@ -10,10 +10,14 @@ import CryptoSwift
 import Web3Core
 import web3swift
 
+/// Represents hyperliquid eip712 field data.
 public struct HyperliquidEIP712Field: Sendable, Codable, Equatable {
+  /// The name.
   public let name: String
+  /// The type.
   public let type: String
 
+  /// Creates a hyperliquid eip712 field.
   public init(name: String, type: String) {
     self.name = name
     self.type = type
@@ -27,6 +31,7 @@ public final class Signer: @unchecked Sendable {
   private let keystore: PlainKeystore
   private let account: EthereumAddress
 
+  /// Creates a signer.
   public init(privateKey: String) throws {
     let cleanedKey = privateKey.hasPrefix("0x") ? String(privateKey.dropFirst(2)) : privateKey
     guard let keyData = Data(hexString: cleanedKey), keyData.count == 32,
@@ -45,6 +50,7 @@ public final class Signer: @unchecked Sendable {
     throw SigningError.signingFailed(reason: "Use signL1(action:nonce:isMainnet:) for Hyperliquid L1 actions")
   }
 
+  /// Computes action hash.
   public static func actionHash(
     action: CanonicalMessagePack.Object,
     nonce: Int64,
@@ -138,6 +144,7 @@ public final class Signer: @unchecked Sendable {
     }
   }
 
+  /// The address.
   public var address: String { account.address.lowercased() }
 
   private func signature(_ typedData: EIP712TypedData) throws -> SignatureTypes {

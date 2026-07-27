@@ -10,23 +10,34 @@ import Foundation
 /// Order-preserving MessagePack encoder for Hyperliquid L1 action hashes.
 /// Every map uses `Object`, not a Swift dictionary, because its byte order is signed.
 public enum CanonicalMessagePack {
+  /// A value supported by the canonical MessagePack encoder.
   public indirect enum Value: Sendable {
+    /// A UTF-8 string value.
     case string(String)
+    /// A Boolean value.
     case bool(Bool)
+    /// A null value.
     case null
+    /// A non-negative integral numeric value.
     case number(Double)
+    /// An ordered collection of values.
     case array([Value])
+    /// An order-preserving object value.
     case object(Object)
   }
 
+  /// An ordered collection of named MessagePack values.
   public struct Object: Sendable {
+    /// Object fields in their encoded order.
     public let fields: [(String, Value)]
 
+    /// Creates an object with fields in encoding order.
     public init(_ fields: [(String, Value)]) {
       self.fields = fields
     }
   }
 
+  /// Encodes an ordered object as canonical MessagePack data.
   public static func encode(_ object: Object) throws -> Data {
     var output = Data()
     try encodeMap(object.fields, into: &output)

@@ -7,13 +7,17 @@
 
 import Foundation
 
+/// Represents a value for all mids.
 public struct AllMids: Sendable, Codable {
+  /// The prices associated with this value.
   public let prices: [String: Double]
 
+  /// Creates an instance with the supplied values.
   public init(prices: [String: Double]) {
     self.prices = prices
   }
 
+  /// Creates an instance with the supplied values.
   public init(from decoder: Decoder) throws {
     let container = try decoder.singleValueContainer()
     if let wrapped = try? container.decode(Wrapped.self) {
@@ -32,11 +36,13 @@ public struct AllMids: Sendable, Codable {
     prices = parsed
   }
 
+  /// Encodes this value into the supplied encoder.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.singleValueContainer()
     try container.encode(Wrapped(prices: prices))
   }
 
+  /// Performs the price operation.
   public func price(for coin: String) -> Double? {
     prices[coin]
   }

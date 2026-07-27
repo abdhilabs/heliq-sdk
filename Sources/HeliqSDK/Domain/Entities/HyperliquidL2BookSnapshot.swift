@@ -10,9 +10,13 @@ import Foundation
 /// A side-preserving projection of Hyperliquid's `l2Book` response.
 /// Price and size remain protocol strings to preserve server precision.
 public struct HyperliquidL2BookSnapshot: Sendable, Equatable {
+  /// Represents a value for level.
   public struct Level: Sendable, Equatable {
+    /// The price associated with this value.
     public let price: String
+    /// The size associated with this value.
     public let size: String
+    /// The order count associated with this value.
     public let orderCount: Int
 
     fileprivate init(price: String, size: String, orderCount: Int) {
@@ -22,11 +26,16 @@ public struct HyperliquidL2BookSnapshot: Sendable, Equatable {
     }
   }
 
+  /// The coin associated with this value.
   public let coin: String
+  /// The timestamp associated with this value.
   public let timestamp: Date
+  /// The bids associated with this value.
   public let bids: [Level]
+  /// The asks associated with this value.
   public let asks: [Level]
 
+  /// Decodes this value from the supplied response data.
   public static func decode(_ data: Data) throws -> Self {
     let dto = try JSONDecoder().decode(DTO.self, from: data)
     guard dto.levels.count == 2 else {

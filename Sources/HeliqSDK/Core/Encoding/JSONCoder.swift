@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// Encodes and decodes JSON using snake-case keys.
 public enum JSONCoder {
   private static var encoder: JSONEncoder {
     let encoder = JSONEncoder()
@@ -20,18 +21,22 @@ public enum JSONCoder {
     return decoder
   }
   
+  /// Encodes a value as JSON data.
   public static func encode<T: Encodable>(_ value: T) throws -> Data {
     try encoder.encode(value)
   }
   
+  /// Decodes JSON data into a specified type.
   public static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
     try decoder.decode(type, from: data)
   }
   
+  /// Decodes JSON data into an inferred type.
   public static func decode<T: Decodable>(from data: Data) throws -> T {
     try decoder.decode(T.self, from: data)
   }
   
+  /// Encodes a value as a UTF-8 JSON string.
   public static func encodeToString<T: Encodable>(_ value: T) throws -> String {
     let data = try encode(value)
     guard let string = String(data: data, encoding: .utf8) else {
@@ -40,6 +45,7 @@ public enum JSONCoder {
     return string
   }
   
+  /// Decodes a UTF-8 JSON string into a specified type.
   public static func decodeFromString<T: Decodable>(_ type: T.Type, from string: String) throws -> T {
     guard let data = string.data(using: .utf8) else {
       throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: [], debugDescription: "Failed to convert string to data"))

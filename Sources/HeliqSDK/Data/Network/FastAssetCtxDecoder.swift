@@ -8,10 +8,14 @@
 import Compression
 import Foundation
 
+/// Represents fast asset ctx data.
 public struct FastAssetCtx: Sendable, Codable, Equatable {
+  /// The mark px.
   public let markPx: String?
+  /// The mid px.
   public let midPx: String?
 
+  /// Creates a fast asset ctx.
   public init(markPx: String? = nil, midPx: String? = nil) {
     self.markPx = markPx
     self.midPx = midPx
@@ -20,6 +24,7 @@ public struct FastAssetCtx: Sendable, Codable, Equatable {
 
 /// Decodes the Hyperliquid `fastAssetCtxs` raw-DEFLATE feed.
 public enum FastAssetCtxDecoder {
+  /// Computes decode.
   public static func decode(_ base64Payload: String) throws -> [String: FastAssetCtx] {
     guard let compressed = Data(base64Encoded: base64Payload) else {
       throw ValidationError.malformedData(reason: "fastAssetCtxs payload is not base64")

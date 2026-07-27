@@ -7,21 +7,36 @@
 
 import Foundation
 
+/// Represents a value for hyperliquid frontend open order.
 public struct HyperliquidFrontendOpenOrder: Sendable, Equatable {
+  /// The coin associated with this value.
   public let coin: String
+  /// The order i d associated with this value.
   public let orderID: Int64
+  /// The side associated with this value.
   public let side: String
+  /// The limit price associated with this value.
   public let limitPrice: String
+  /// The original size associated with this value.
   public let originalSize: String
+  /// The size associated with this value.
   public let size: String
+  /// The timestamp associated with this value.
   public let timestamp: Int64
+  /// The order type associated with this value.
   public let orderType: String
+  /// The is trigger associated with this value.
   public let isTrigger: Bool
+  /// The is position tpsl associated with this value.
   public let isPositionTpsl: Bool
+  /// The reduce only associated with this value.
   public let reduceOnly: Bool
+  /// The trigger condition associated with this value.
   public let triggerCondition: String
+  /// The trigger price associated with this value.
   public let triggerPrice: String
 
+  /// Decodes this value from the supplied response data.
   public static func decodeList(_ data: Data) throws -> [Self] {
     try JSONDecoder().decode([DTO].self, from: data).map(Self.init)
   }

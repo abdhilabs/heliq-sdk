@@ -7,34 +7,43 @@
 
 import Foundation
 
+/// Defines requirements for web socket message router delegate implementations.
 public protocol WebSocketMessageRouterDelegate: AnyObject, Sendable {
+  /// Performs the did receive subscription operation.
   func didReceiveSubscription(_ channel: String, data: Data)
+  /// Performs the did receive unsubscription operation.
   func didReceiveUnsubscription(_ channel: String)
 }
 
+/// Provides web socket message router functionality.
 public final class WebSocketMessageRouter: @unchecked Sendable {
   private let parser: WebSocketMessageParser
   private var handlers: [String: (Data) -> Void] = [:]
   private let queue = DispatchQueue(label: "com.heliqsdk.router")
   
+  /// Public SDK API.
   public weak var delegate: (any WebSocketMessageRouterDelegate)?
   
+  /// Creates a web socket message router.
   public init(parser: WebSocketMessageParser = WebSocketMessageParser()) {
     self.parser = parser
   }
   
+  /// Performs the register handler operation.
   public func registerHandler(_ handler: @escaping (Data) -> Void, for channel: String) {
     queue.async {
       self.handlers[channel] = handler
     }
   }
   
+  /// Performs the unregister handler operation.
   public func unregisterHandler(for channel: String) {
     queue.async {
       self.handlers.removeValue(forKey: channel)
     }
   }
   
+  /// Performs the route operation.
   public func route(_ data: Data) {
     do {
       let message = try parser.parse(data)
@@ -67,6 +76,7 @@ public final class WebSocketMessageRouter: @unchecked Sendable {
     }
   }
   
+  /// Performs the clear all handlers operation.
   public func clearAllHandlers() {
     queue.async {
       self.handlers.removeAll()

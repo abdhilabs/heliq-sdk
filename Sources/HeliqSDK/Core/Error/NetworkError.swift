@@ -7,15 +7,24 @@
 
 import Foundation
 
+/// Describes network failures returned by the SDK.
 public enum NetworkError: HeliqError, Sendable {
+  /// Existing network connectivity was lost.
   case connectivityLost
+  /// A network request timed out.
   case timeout
+  /// DNS lookup failed.
   case dnsResolutionFailed
+  /// The remote host refused the connection.
   case connectionRefused
+  /// No network connection is available.
   case networkUnavailable
+  /// The network response was invalid.
   case invalidResponse
+  /// An unclassified network error occurred.
   case unknown(underlying: Error?)
   
+  /// Stable machine-readable code for this error.
   public var errorCode: String {
     switch self {
     case .connectivityLost:
@@ -35,6 +44,7 @@ public enum NetworkError: HeliqError, Sendable {
     }
   }
   
+  /// Human-readable description of this error.
   public var errorDescription: String {
     switch self {
     case .connectivityLost:
@@ -57,6 +67,7 @@ public enum NetworkError: HeliqError, Sendable {
     }
   }
   
+  /// Whether retrying the failed operation may succeed.
   public var isRetryable: Bool {
     switch self {
     case .connectivityLost, .timeout, .networkUnavailable, .invalidResponse:
