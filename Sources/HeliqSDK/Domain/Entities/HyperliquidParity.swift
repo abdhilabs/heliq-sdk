@@ -54,6 +54,12 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
   public func body() -> [String: JSONValue] { parameters.merging(["type": .string(type.rawValue)]) { _, new in new } }
   public func data() throws -> Data { try JSONEncoder().encode(body()) }
 
+  public static func allMids(dex: String? = nil) -> Self {
+    var parameters: [String: JSONValue] = [:]
+    if let dex { parameters["dex"] = .string(dex) }
+    return Self(type: .allMids, parameters: parameters)
+  }
+
   public static func userFills(user: String, aggregateByTime: Bool? = nil) -> Self {
     var parameters: [String: JSONValue] = ["user": .string(user)]
     if let aggregateByTime { parameters["aggregateByTime"] = .bool(aggregateByTime) }
@@ -151,6 +157,11 @@ public final class HyperliquidAPI: @unchecked Sendable {
   private let apiClient: APIClient
   public init(apiClient: APIClient) { self.apiClient = apiClient }
   public func info(_ request: HyperliquidInfoRequest) async throws -> JSONValue { try await apiClient.request(HyperliquidRawRequest(path: "/info", body: request.body())) }
+  public func allMids(dex: String? = nil) async throws -> [String: String] {
+    let response = try await info(.allMids(dex: dex))
+    return try JSONDecoder().decode([String: String].self, from: JSONEncoder().encode(response))
+  }
+
   public func metaAndAssetCtxs() async throws -> HyperliquidMetaAndAssetCtxs {
     let response = try await info(.init(type: .metaAndAssetCtxs))
     return try HyperliquidMetaAndAssetCtxs.decode(JSONEncoder().encode(response))

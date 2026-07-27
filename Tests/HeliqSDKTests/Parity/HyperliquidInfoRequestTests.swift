@@ -10,6 +10,14 @@ import Testing
 import HeliqSDK
 
 struct HyperliquidInfoRequestTests {
+  @Test func allMidsIncludesOptionalDex() throws {
+    let body = try HyperliquidInfoRequest.allMids(dex: "xyz").data()
+    let object = try JSONSerialization.jsonObject(with: body) as! [String: Any]
+
+    #expect(object["type"] as? String == "allMids")
+    #expect(object["dex"] as? String == "xyz")
+  }
+
   @Test func userFillsIncludesOptionalAggregationFlag() throws {
     let body = try HyperliquidInfoRequest.userFills(user: "0xabc", aggregateByTime: true).data()
     let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]
