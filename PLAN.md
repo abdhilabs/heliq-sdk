@@ -512,12 +512,12 @@ let infoOnlySDK = HeliqSDK.builder()
 |------|--------|-------|
 | Core typed repositories and use cases | ✅ Done | Stable convenience subset for common Info and Exchange flows |
 | Lossless Hyperliquid raw transport | ✅ Done | Official Info, Exchange, WebSocket subscriptions, inbound events, and WS post requests; see §4 |
-| Native EIP-712 signer | ❌ Not implemented | Existing `Signer` is a stub; caller supplies `SignatureTypes` for signed raw Exchange actions |
-| Signed-action golden fixtures | ❌ Not implemented | Required before native signer can be considered correct |
-| Typed advanced API models | ⬜ Optional | Raw `JSONValue` transport is available; add typed models where consumer demand justifies them |
-| `fastAssetCtxs` decompression helper | ⬜ Optional | Raw compressed stream is available |
+| Native EIP-712 signer | 🟡 Core paths implemented | Native canonical-MessagePack L1 `Agent` signing plus generic caller-schema user-signed EIP-712 envelopes. Official vectors cover L1 dummy mainnet/testnet, nested L1 orders, USD transfer, and bridge withdrawal. |
+| Signed-action golden fixtures | 🟡 Focused coverage | Official vectors lock the implemented L1 and user-signed paths. Further user-signed schemas need upstream fixtures before typed verification is claimed. |
+| Typed advanced API models | 🟡 Core corrections implemented | Typed candles, open orders, fills/time-window fills, L2 books, order status, pagination bounds, and `fastAssetCtxs`; raw `JSONValue` remains the full API surface. |
+| `fastAssetCtxs` decompression helper | ✅ Done | `FastAssetCtxDecoder` decodes documented base64 raw-DEFLATE payloads and fails closed for unsupported encodings. |
 | AssetMetaCache | ✅ Done | Actor-based cache with TTL support |
-| DTO mapping layer | ⬜ Deferred | Direct Codable entities remain appropriate until model isolation is needed |
+| DTO mapping layer | 🟡 Endpoint-scoped | DTO boundaries isolate implemented typed models from wire shapes; add more only as stable typed wrappers are needed. |
 | Swift 6 concurrency | ✅ Done | Async/await and isolated shared state |
 | Demo UI tests | ✅ Done | `HeliqSDKDemoUITests` target + scheme |
 | Official transport coverage tests | ✅ Done | Registry, payload, inbound-event, and live raw Info testnet coverage |
