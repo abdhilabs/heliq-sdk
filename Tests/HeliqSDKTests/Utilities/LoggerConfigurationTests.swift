@@ -10,7 +10,7 @@ import HeliqSDK
 
 struct LoggerConfigurationTests {
   @Test func builderDefaultsToDisabledLogging() {
-    _ = HeliqSDK.builder().wallet(TestWallet()).build()
+    _ = try? HeliqClient.Builder().wallet(TestWallet()).build()
     #expect(Logger.shared.level == .disabled)
   }
 
@@ -28,14 +28,14 @@ struct LoggerConfigurationTests {
 
   @Test func builderAcceptsCustomCombinations() {
     let level: LogLevel = [.error, .info]
-    _ = HeliqSDK.builder().wallet(TestWallet()).logging(level).build()
+    _ = try? HeliqClient.Builder().wallet(TestWallet()).logging(level).build()
 
     #expect(Logger.shared.level == level)
   }
 
   @Test func latestBuildReplacesLoggerLevel() {
-    _ = HeliqSDK.builder().wallet(TestWallet()).logging(.verbose).build()
-    _ = HeliqSDK.builder().wallet(TestWallet()).logging(.debug).build()
+    _ = try? HeliqClient.Builder().wallet(TestWallet()).logging(.verbose).build()
+    _ = try? HeliqClient.Builder().wallet(TestWallet()).logging(.debug).build()
 
     #expect(Logger.shared.level == .debug)
   }

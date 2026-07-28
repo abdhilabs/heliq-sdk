@@ -31,6 +31,8 @@ public protocol APIRouterProtocol: Sendable {
   var body: Data? { get }
   /// The query items.
   var queryItems: [URLQueryItem]? { get }
+  /// Whether this request can be retried without duplicating a side effect.
+  var isRetryable: Bool { get }
 }
 
 /// Adds HeliqSDK conveniences to `APIRouterProtocol`.
@@ -41,6 +43,8 @@ public extension APIRouterProtocol {
   var body: Data? { nil }
   /// The query items.
   var queryItems: [URLQueryItem]? { nil }
+  /// Requests are non-retryable unless a read-only router opts in.
+  var isRetryable: Bool { false }
   
   /// Performs the url request operation.
   func urlRequest(baseURL: String) -> URLRequest? {

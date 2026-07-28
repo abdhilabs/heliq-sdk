@@ -407,6 +407,8 @@ public struct HyperliquidRawRequest: APIRouterProtocol, Sendable {
   private let encodedBody: Data?
   /// The body value.
   public var body: Data? { encodedBody }
+  /// Info transport requests are read-only and safe to retry.
+  public var isRetryable: Bool { path == "/info" }
   /// Creates an instance with the supplied values.
   public init(path: String, body: [String: JSONValue]) throws { self.path = path; encodedBody = try JSONEncoder().encode(body) }
 }

@@ -35,10 +35,16 @@ public final class DIContainer: Sendable {
   }
   
   /// Creates the SDK's default services for an environment.
-  public static func create(environment: HeliqEnvironment) -> DIContainer {
+  public static func create(
+    environment: HeliqEnvironment,
+    wallet: (any WalletServiceProtocol)? = nil
+  ) -> DIContainer {
     let apiClient = APIClient(environment: environment)
     let infoRepository = InfoRepositoryImpl(apiClient: apiClient)
-    let exchangeRepository = ExchangeRepositoryImpl(apiClient: apiClient)
+    let exchangeRepository = ExchangeRepositoryImpl(
+      apiClient: apiClient,
+      wallet: wallet
+    )
     
     return DIContainer(
       infoRepository: infoRepository,

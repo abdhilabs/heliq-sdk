@@ -29,7 +29,7 @@ public final class APIClient: @unchecked Sendable {
   
   /// Performs the request operation.
   public func request<T: Decodable>(_ router: any APIRouterProtocol) async throws -> T {
-    let request = try router.urlRequest(baseURL: Constants.API.baseURL(for: environment))
+    let request = router.urlRequest(baseURL: Constants.API.baseURL(for: environment))
     
     guard let urlRequest = request else {
       throw NetworkError.invalidResponse
@@ -81,7 +81,7 @@ public final class APIClient: @unchecked Sendable {
           logHTTPFailure(path: router.path, status: httpResponse.statusCode, data: data, elapsedMs: elapsedMs)
           throw APIError.invalidResponse
         }
-      } catch let error as HeliqError where error.isRetryable {
+      } catch let error as HeliqError where error.isRetryable && router.isRetryable {
         lastError = error
         if attempt < retryPolicy.maxRetries - 1 {
           let delay = retryPolicy.delay(for: attempt)
@@ -92,11 +92,12 @@ public final class APIClient: @unchecked Sendable {
         throw error
       } catch {
         lastError = NetworkError.unknown(underlying: error)
-        if attempt < retryPolicy.maxRetries - 1 {
-          let delay = retryPolicy.delay(for: attempt)
-          try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-          continue
+        guard router.isRetryable, attempt < retryPolicy.maxRetries - 1 else {
+          break
         }
+
+        let delay = retryPolicy.delay(for: attempt)
+        try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
       }
     }
     
@@ -105,7 +106,7 @@ public final class APIClient: @unchecked Sendable {
   
   /// Performs the request data operation.
   public func requestData(_ router: any APIRouterProtocol) async throws -> Data {
-    let request = try router.urlRequest(baseURL: Constants.API.baseURL(for: environment))
+    let request = router.urlRequest(baseURL: Constants.API.baseURL(for: environment))
     
     guard let urlRequest = request else {
       throw NetworkError.invalidResponse

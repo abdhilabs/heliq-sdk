@@ -123,15 +123,29 @@ public struct ExchangeAPIRequest: APIRouterProtocol, Sendable {
 public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendable {
   private let apiClient: APIClient
   private let transactionBuilder: TransactionBuilder
+  private let wallet: (any WalletServiceProtocol)?
   
-  /// Creates a exchange repository impl.
-  public init(apiClient: APIClient, transactionBuilder: TransactionBuilder = TransactionBuilder()) {
+  /// Creates an exchange repository implementation.
+  public init(
+    apiClient: APIClient,
+    transactionBuilder: TransactionBuilder = TransactionBuilder(),
+    wallet: (any WalletServiceProtocol)? = nil
+  ) {
     self.apiClient = apiClient
     self.transactionBuilder = transactionBuilder
+    self.wallet = wallet
+  }
+
+  private func requireWallet() throws -> any WalletServiceProtocol {
+    guard let wallet else {
+      throw ValidationError.missingRequiredField(field: "wallet")
+    }
+    return wallet
   }
   
   /// Performs the place order operation.
   public func placeOrder(_ order: OrderRequest) async throws -> OrderResponse {
+    _ = try requireWallet()
     let transaction = try transactionBuilder.buildOrderTransaction(order: order)
     let data = try JSONSerialization.data(withJSONObject: transaction)
     let request = ExchangeAPIRequest(endpoint: .placeOrder, body: data)
@@ -140,6 +154,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the bulk orders operation.
   public func bulkOrders(_ orders: [OrderRequest]) async throws -> BulkOrderResponse {
+    _ = try requireWallet()
     let transactions = try orders.map { try transactionBuilder.buildOrderTransaction(order: $0) }
     let wrapper: [String: Any] = ["type": "bulkOrders", "orders": transactions]
     let data = try JSONSerialization.data(withJSONObject: wrapper)
@@ -149,6 +164,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the cancel order operation.
   public func cancelOrder(orderId: String, asset: Int) async throws -> CancelResponse {
+    _ = try requireWallet()
     let transaction = transactionBuilder.buildCancelTransaction(orderId: orderId, asset: asset)
     let data = try JSONSerialization.data(withJSONObject: transaction)
     let request = ExchangeAPIRequest(endpoint: .cancel, body: data)
@@ -157,6 +173,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the cancel by cloid operation.
   public func cancelByCloid(cloid: String, asset: Int) async throws -> CancelResponse {
+    _ = try requireWallet()
     let transaction = transactionBuilder.buildCancelByCloidTransaction(cloid: cloid, asset: asset)
     let data = try JSONSerialization.data(withJSONObject: transaction)
     let request = ExchangeAPIRequest(endpoint: .cancelByCloid, body: data)
@@ -165,6 +182,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the cancel all operation.
   public func cancelAll() async throws -> CancelAllResponse {
+    _ = try requireWallet()
     let transaction = transactionBuilder.buildCancelAllTransaction()
     let data = try JSONSerialization.data(withJSONObject: transaction)
     let request = ExchangeAPIRequest(endpoint: .cancelAll, body: data)
@@ -173,6 +191,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the modify order operation.
   public func modifyOrder(orderId: String, asset: Int, size: Double?, price: Double?) async throws -> OrderResponse {
+    _ = try requireWallet()
     var transaction: [String: Any] = [
       "type": "modify",
       "oid": orderId,
@@ -188,6 +207,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the modify by cloid operation.
   public func modifyByCloid(cloid: String, asset: Int, size: Double?, price: Double?) async throws -> OrderResponse {
+    _ = try requireWallet()
     var transaction: [String: Any] = [
       "type": "modifyByCloid",
       "cloid": cloid,
@@ -203,6 +223,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the set leverage operation.
   public func setLeverage(asset: Int, leverage: Int) async throws -> SetLeverageResponse {
+    _ = try requireWallet()
     let transaction = transactionBuilder.buildSetLeverageTransaction(asset: asset, leverage: leverage)
     let data = try JSONSerialization.data(withJSONObject: transaction)
     let request = ExchangeAPIRequest(endpoint: .setLeverage, body: data)
@@ -211,6 +232,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the set margin mode operation.
   public func setMarginMode(asset: Int, mode: MarginMode) async throws -> SetMarginModeResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "setMarginMode",
       "asset": asset,
@@ -223,6 +245,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the transfer operation.
   public func transfer(fromAddress: String, toAddress: String, amount: Double, asset: Int) async throws -> TransferResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "transfer",
       "fromAddress": fromAddress,
@@ -237,6 +260,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the send to address operation.
   public func sendToAddress(address: String, amount: Double, asset: Int) async throws -> SendToAddressResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "sendToAddress",
       "address": address,
@@ -250,6 +274,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the spot transfer operation.
   public func spotTransfer(toAddress: String, amount: Double, asset: Int) async throws -> SpotTransferResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "spotTransfer",
       "toAddress": toAddress,
@@ -263,6 +288,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the vault transfer operation.
   public func vaultTransfer(vaultTransfer: VaultTransfer) async throws -> VaultTransferResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "vaultTransfer",
       "fromVault": vaultTransfer.fromVault,
@@ -277,6 +303,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the update builder operation.
   public func updateBuilder(builderAddress: String) async throws -> UpdateBuilderResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "updateBuilder",
       "builderAddress": builderAddress
@@ -288,6 +315,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the schedule cancel operation.
   public func scheduleCancel(time: Date) async throws -> ScheduleCancelResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "scheduleCancel",
       "time": Int(time.timeIntervalSince1970 * 1000)
@@ -299,6 +327,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the set referrer operation.
   public func setReferrer(referrer: String) async throws -> SetReferrerResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "setReferrer",
       "referrer": referrer
@@ -310,6 +339,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the convert to multi sig user operation.
   public func convertToMultiSigUser() async throws -> ConvertToMultiSigResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = ["type": "convertToMultiSig"]
     let data = try JSONSerialization.data(withJSONObject: transaction)
     let request = ExchangeAPIRequest(endpoint: .convertToMultiSig, body: data)
@@ -318,6 +348,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   
   /// Performs the usd send operation.
   public func usdSend(destination: String, amount: Double) async throws -> UsdSendResponse {
+    _ = try requireWallet()
     let transaction: [String: Any] = [
       "type": "usdSend",
       "destination": destination,

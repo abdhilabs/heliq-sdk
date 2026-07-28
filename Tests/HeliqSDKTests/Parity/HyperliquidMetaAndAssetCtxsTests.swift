@@ -10,18 +10,11 @@ import Testing
 import HeliqSDK
 
 struct HyperliquidMetaAndAssetCtxsTests {
-  @Test func exposesTypedMetaAndAssetCtxsFromSDKRawAPI() {
-    HeliqSDK.shared.initialize { builder in
-      _ = builder.environment(.testnet).wallet(TestWallet())
-    }
+  @Test func exposesTypedMetaAndAssetCtxsFromClientRawAPI() throws {
+    let client = try HeliqClient.Builder()
+      .environment(.testnet)
+      .build()
 
-    let _: () async throws -> HyperliquidMetaAndAssetCtxs = HeliqSDK.shared.raw.metaAndAssetCtxs
-  }
-
-  private struct TestWallet: WalletServiceProtocol {
-    let address = "0x0000000000000000000000000000000000000000"
-    func sign(message: String) async throws -> SignatureTypes {
-      SignatureTypes(r: "0x0", s: "0x0", v: 27, signatureType: .eoa)
-    }
+    let _: () async throws -> HyperliquidMetaAndAssetCtxs = client.raw.metaAndAssetCtxs
   }
 }

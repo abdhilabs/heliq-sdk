@@ -121,6 +121,22 @@ struct OrderTypeTests {
     #expect(decoded.rawValue == "limitIfLimit")
   }
   
+  @Test func decodingUnknownOrderTypeThrows() throws {
+    let data = Data("{\"type\":\"unsupported\"}".utf8)
+
+    #expect(throws: DecodingError.self) {
+      _ = try JSONCoder.decode(OrderType.self, from: data)
+    }
+  }
+
+  @Test func decodingUnknownTriggerOrderTypeThrows() throws {
+    let data = Data("{\"type\":\"unsupported\"}".utf8)
+
+    #expect(throws: DecodingError.self) {
+      _ = try JSONCoder.decode(TriggerOrderType.self, from: data)
+    }
+  }
+
   @Test func testOrderRequest_marketOrder_encodeAndDecode_succeeds() throws {
     let order = OrderRequest(
       asset: 0,

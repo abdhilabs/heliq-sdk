@@ -54,7 +54,11 @@ public enum OrderType: Sendable, Codable {
       let trigger = try container.decode(TriggerParams.self, forKey: .trigger)
       self = .triggerLimit(trigger)
     default:
-      self = .limit
+      throw DecodingError.dataCorruptedError(
+        forKey: .type,
+        in: container,
+        debugDescription: "Unsupported order type: \(type)"
+      )
     }
   }
   
@@ -127,7 +131,11 @@ public enum TriggerOrderType: String, Sendable, Codable {
     case "limitIfLimit":
       self = .limitIfLimit
     default:
-      self = .limitIfLimit
+      throw DecodingError.dataCorruptedError(
+        forKey: .type,
+        in: container,
+        debugDescription: "Unsupported trigger order type: \(type)"
+      )
     }
   }
   

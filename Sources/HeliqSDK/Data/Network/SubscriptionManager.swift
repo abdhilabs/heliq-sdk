@@ -116,7 +116,7 @@ public final class SubscriptionManager: @unchecked Sendable {
     
     guard let service = webSocketService else { return }
     
-    try service.subscribe(channel: channel.channelName, payload: channel.payload)
+    try await service.subscribe(channel: channel.channelName, payload: channel.payload)
   }
   
   /// Performs the unsubscribe operation.
@@ -134,7 +134,7 @@ public final class SubscriptionManager: @unchecked Sendable {
     
     guard let service = webSocketService else { return }
     
-    try service.unsubscribe(channel: channel.channelName, payload: channel.payload)
+    try await service.unsubscribe(channel: channel.channelName, payload: channel.payload)
   }
   
   /// Performs the subscribe operation.
@@ -146,7 +146,7 @@ public final class SubscriptionManager: @unchecked Sendable {
         continuation.resume()
       }
     }
-    try webSocketService?.subscribe(subscription)
+    try await webSocketService?.subscribe(subscription)
   }
 
   /// Performs the unsubscribe operation.
@@ -158,7 +158,7 @@ public final class SubscriptionManager: @unchecked Sendable {
         continuation.resume()
       }
     }
-    try webSocketService?.unsubscribe(subscription)
+    try await webSocketService?.unsubscribe(subscription)
   }
 
   /// Performs the is subscribed operation.
@@ -179,8 +179,12 @@ public final class SubscriptionManager: @unchecked Sendable {
     }
 
     guard let service = webSocketService else { return }
-    for channel in channels { try service.unsubscribe(channel: channel.channelName) }
-    for subscription in rawSubscriptions { try service.unsubscribe(subscription) }
+    for channel in channels {
+      try await service.unsubscribe(channel: channel.channelName)
+    }
+    for subscription in rawSubscriptions {
+      try await service.unsubscribe(subscription)
+    }
   }
   
   /// Performs the is subscribed operation.

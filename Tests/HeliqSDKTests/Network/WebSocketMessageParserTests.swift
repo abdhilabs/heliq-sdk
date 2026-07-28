@@ -92,8 +92,10 @@ struct WebSocketMessageParserTests {
 struct WebSocketMessageRouterTests {
   @Test func testRegisterHandler_storesHandler() async throws {
     let router = WebSocketMessageRouter()
-    var handlerCallCount = 0
-    let handler: (Data) -> Void = { _ in handlerCallCount += 1 }
+    let recorder = CallRecorder()
+    let handler: @Sendable (Data) -> Void = { _ in
+      Task { await recorder.record() }
+    }
     
     router.registerHandler(handler, for: "allMids")
     
@@ -102,13 +104,15 @@ struct WebSocketMessageRouterTests {
     
     try await Task.sleep(nanoseconds: 50_000_000)
     
-    #expect(handlerCallCount == 1)
+    #expect(await recorder.count == 1)
   }
   
-  @Test func testUnregisterHandler_removesHandler() throws {
+  @Test func testUnregisterHandler_removesHandler() async throws {
     let router = WebSocketMessageRouter()
-    var handlerCallCount = 0
-    let handler: (Data) -> Void = { _ in handlerCallCount += 1 }
+    let recorder = CallRecorder()
+    let handler: @Sendable (Data) -> Void = { _ in
+      Task { await recorder.record() }
+    }
     
     router.registerHandler(handler, for: "allMids")
     router.unregisterHandler(for: "allMids")
@@ -116,13 +120,16 @@ struct WebSocketMessageRouterTests {
     let jsonData = "{\"method\":\"subscribe\",\"channel\":\"allMids\"}".data(using: .utf8)!
     router.route(jsonData)
     
-    #expect(handlerCallCount == 0)
+    try await Task.sleep(nanoseconds: 50_000_000)
+    #expect(await recorder.count == 0)
   }
   
-  @Test func testClearAllHandlers_removesAllHandlers() throws {
+  @Test func testClearAllHandlers_removesAllHandlers() async throws {
     let router = WebSocketMessageRouter()
-    var handlerCallCount = 0
-    let handler: (Data) -> Void = { _ in handlerCallCount += 1 }
+    let recorder = CallRecorder()
+    let handler: @Sendable (Data) -> Void = { _ in
+      Task { await recorder.record() }
+    }
     
     router.registerHandler(handler, for: "allMids")
     router.registerHandler(handler, for: "l2Book")
@@ -131,7 +138,16 @@ struct WebSocketMessageRouterTests {
     let jsonData = "{\"method\":\"subscribe\",\"channel\":\"allMids\"}".data(using: .utf8)!
     router.route(jsonData)
     
-    #expect(handlerCallCount == 0)
+    try await Task.sleep(nanoseconds: 50_000_000)
+    #expect(await recorder.count == 0)
+  }
+}
+
+private actor CallRecorder {
+  private(set) var count = 0
+
+  func record() {
+    count += 1
   }
 }
 

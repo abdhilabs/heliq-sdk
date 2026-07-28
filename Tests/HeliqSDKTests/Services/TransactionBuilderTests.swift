@@ -99,6 +99,38 @@ struct TransactionBuilderTests {
     }
   }
   
+  @Test func buildOrderTransactionRejectsMissingLimitPrice() throws {
+    let order = OrderRequest(
+      asset: 0,
+      side: .buy,
+      orderType: .limit,
+      size: 1,
+      price: nil,
+      reduceOnly: false,
+      cloid: nil
+    )
+
+    #expect(throws: ValidationError.self) {
+      _ = try TransactionBuilder().buildOrderTransaction(order: order)
+    }
+  }
+
+  @Test func buildOrderTransactionRejectsNonPositiveSize() throws {
+    let order = OrderRequest(
+      asset: 0,
+      side: .buy,
+      orderType: .market,
+      size: 0,
+      price: nil,
+      reduceOnly: false,
+      cloid: nil
+    )
+
+    #expect(throws: ValidationError.self) {
+      _ = try TransactionBuilder().buildOrderTransaction(order: order)
+    }
+  }
+
   @Test func testBuildCancelTransaction_createsCorrectDictionary() throws {
     let builder = TransactionBuilder()
     

@@ -22,8 +22,12 @@ final class SDKManager: @unchecked Sendable {
   
   private init() {}
   
-  var sdk: HeliqSDK {
-    HeliqSDK.shared
+  private(set) var client: HeliqClient?
+  var sdk: HeliqClient {
+    guard let client else {
+      preconditionFailure("Initialize the demo client before accessing SDK services.")
+    }
+    return client
   }
   
   @MainActor
@@ -35,16 +39,17 @@ final class SDKManager: @unchecked Sendable {
     mockWallet = wallet
     walletAddress = wallet.address
     
-    HeliqSDK.shared.initialize { builder in
-      builder.environment(environment)
-      builder.wallet(wallet)
-    }
-    self.isInitialized = true
+    client = try HeliqClient.Builder()
+      .environment(environment)
+      .wallet(wallet)
+      .build()
+    isInitialized = true
   }
   
   @MainActor
   func disconnect() {
     isInitialized = false
+    client = nil
     mockWallet = nil
     walletAddress = nil
     initializationError = nil

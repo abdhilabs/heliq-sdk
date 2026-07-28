@@ -65,6 +65,8 @@ public struct InfoAPIRequest: APIRouterProtocol, Sendable {
   public var method: HTTPMethod { .post }
   /// The body.
   public var body: Data? { _body }
+  /// Info requests are read-only and safe to retry.
+  public var isRetryable: Bool { true }
   
   /// Creates a info apirequest.
   public init(endpoint: InfoEndpoint, body: Data?) {

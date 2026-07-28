@@ -17,6 +17,18 @@ public final class TransactionBuilder: @unchecked Sendable {
     order: OrderRequest,
     vaultAddress: String? = nil
   ) throws -> [String: Any] {
+    guard order.asset >= 0 else {
+      throw ValidationError.outOfRange(field: "asset", min: 0, max: nil)
+    }
+
+    guard order.size.isFinite, order.size > 0 else {
+      throw ValidationError.outOfRange(
+        field: "size",
+        min: Double.leastNonzeroMagnitude,
+        max: nil
+      )
+    }
+
     var transaction: [String: Any] = [
       "type": "order",
       "asset": order.asset,
@@ -29,10 +41,10 @@ public final class TransactionBuilder: @unchecked Sendable {
     case .market:
       transaction["orderType"] = ["type": "market"]
     case .limit:
-      if let price = order.price {
-        transaction["orderType"] = ["type": "limit", "price": price]
-      }
+      let price = try validatedPrice(order.price)
+      transaction["orderType"] = ["type": "limit", "price": price]
     case .triggerMarket(let trigger):
+      try validateTrigger(trigger)
       let triggerDict: [String: Any] = [
         "triggerPx": trigger.triggerPx,
         "tpsl": trigger.tpsl
@@ -42,17 +54,17 @@ public final class TransactionBuilder: @unchecked Sendable {
         "trigger": triggerDict
       ]
     case .triggerLimit(let trigger):
-      if let price = order.price {
-        let triggerDict: [String: Any] = [
-          "triggerPx": trigger.triggerPx,
-          "tpsl": trigger.tpsl
-        ]
-        transaction["orderType"] = [
-          "type": "triggerLimit",
-          "price": price,
-          "trigger": triggerDict
-        ]
-      }
+      let price = try validatedPrice(order.price)
+      try validateTrigger(trigger)
+      let triggerDict: [String: Any] = [
+        "triggerPx": trigger.triggerPx,
+        "tpsl": trigger.tpsl
+      ]
+      transaction["orderType"] = [
+        "type": "triggerLimit",
+        "price": price,
+        "trigger": triggerDict
+      ]
     }
     
     if let cloid = order.cloid {
@@ -64,6 +76,32 @@ public final class TransactionBuilder: @unchecked Sendable {
     }
     
     return transaction
+  }
+
+  private func validatedPrice(_ price: Double?) throws -> Double {
+    guard let price else {
+      throw ValidationError.missingRequiredField(field: "price")
+    }
+
+    guard price.isFinite, price > 0 else {
+      throw ValidationError.outOfRange(
+        field: "price",
+        min: Double.leastNonzeroMagnitude,
+        max: nil
+      )
+    }
+
+    return price
+  }
+
+  private func validateTrigger(_ trigger: TriggerParams) throws {
+    guard trigger.triggerPx.isFinite, trigger.triggerPx > 0 else {
+      throw ValidationError.outOfRange(
+        field: "triggerPx",
+        min: Double.leastNonzeroMagnitude,
+        max: nil
+      )
+    }
   }
   
   /// Performs the build cancel transaction operation.

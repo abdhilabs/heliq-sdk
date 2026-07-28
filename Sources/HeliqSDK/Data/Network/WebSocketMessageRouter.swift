@@ -18,7 +18,7 @@ public protocol WebSocketMessageRouterDelegate: AnyObject, Sendable {
 /// Provides web socket message router functionality.
 public final class WebSocketMessageRouter: @unchecked Sendable {
   private let parser: WebSocketMessageParser
-  private var handlers: [String: (Data) -> Void] = [:]
+  private var handlers: [String: @Sendable (Data) -> Void] = [:]
   private let queue = DispatchQueue(label: "com.heliqsdk.router")
   
   /// Public SDK API.
@@ -30,7 +30,10 @@ public final class WebSocketMessageRouter: @unchecked Sendable {
   }
   
   /// Performs the register handler operation.
-  public func registerHandler(_ handler: @escaping (Data) -> Void, for channel: String) {
+  public func registerHandler(
+    _ handler: @escaping @Sendable (Data) -> Void,
+    for channel: String
+  ) {
     queue.async {
       self.handlers[channel] = handler
     }

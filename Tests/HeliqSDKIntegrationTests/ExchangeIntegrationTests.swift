@@ -157,7 +157,12 @@ struct ExchangeIntegrationTests {
       _ = try await work()
       #expect(true)
     } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
+      #expect(
+        error is APIError ||
+        error is NetworkError ||
+        error is DecodingError ||
+        error is ValidationError
+      )
     }
   }
 }
