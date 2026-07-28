@@ -371,7 +371,7 @@ class WebSocketManager: ObservableObject, @unchecked Sendable {
     case .message(let data):
       parseMessage(data)
     case .failed:
-      state = .disconnected
+      break
     @unknown default:
       state = .disconnected
     }

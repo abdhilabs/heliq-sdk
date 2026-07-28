@@ -1,3 +1,10 @@
+//
+//  WebSocketService.swift
+//  HeliqSDK
+//
+//  Created by Abdhilabs on 05/04/26.
+//
+
 import Foundation
 
 /// Represents lifecycle and message events emitted by a WebSocket connection.

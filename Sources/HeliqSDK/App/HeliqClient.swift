@@ -1,3 +1,10 @@
+//
+//  HeliqClient.swift
+//  HeliqSDK
+//
+//  Created by Abdhilabs on 05/04/26.
+//
+
 import Foundation
 
 /// An independently configured client for Heliq services.

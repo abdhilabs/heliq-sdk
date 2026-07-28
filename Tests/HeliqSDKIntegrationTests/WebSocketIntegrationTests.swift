@@ -1,3 +1,10 @@
+//
+//  WebSocketIntegrationTests.swift
+//  HeliqSDKIntegrationTests
+//
+//  Created by Abdhilabs on 05/04/26.
+//
+
 import Foundation
 import Testing
 import HeliqSDK

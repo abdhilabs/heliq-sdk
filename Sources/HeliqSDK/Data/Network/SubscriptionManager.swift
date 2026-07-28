@@ -92,7 +92,9 @@ public enum SubscriptionChannel: Sendable, Hashable {
 /// Provides subscription manager functionality.
 public final class SubscriptionManager: @unchecked Sendable {
   private var activeSubscriptions: Set<SubscriptionChannel> = []
+  private var pendingSubscriptions: Set<SubscriptionChannel> = []
   private var activeRawSubscriptions: Set<HyperliquidWebSocketSubscription> = []
+  private var pendingRawSubscriptions: Set<HyperliquidWebSocketSubscription> = []
   private let queue = DispatchQueue(label: "com.heliqsdk.subscriptionmanager")
   private weak var webSocketService: WebSocketService?
   
@@ -101,64 +103,112 @@ public final class SubscriptionManager: @unchecked Sendable {
     self.webSocketService = webSocketService
   }
   
-  /// Performs the subscribe operation.
+  /// Subscribes to a channel after its WebSocket request succeeds.
   public func subscribe(to channel: SubscriptionChannel) async throws {
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-      queue.async {
-        guard !self.activeSubscriptions.contains(channel) else {
-          continuation.resume()
-          return
-        }
-        self.activeSubscriptions.insert(channel)
-        continuation.resume()
+    let reserved = queue.sync {
+      guard !activeSubscriptions.contains(channel),
+            !pendingSubscriptions.contains(channel) else {
+        return false
       }
+      pendingSubscriptions.insert(channel)
+      return true
     }
-    
-    guard let service = webSocketService else { return }
-    
-    try await service.subscribe(channel: channel.channelName, payload: channel.payload)
+    guard reserved else { return }
+
+    do {
+      if let service = webSocketService {
+        try await service.subscribe(channel: channel.channelName, payload: channel.payload)
+      }
+      let _: Void = queue.sync {
+        pendingSubscriptions.remove(channel)
+        activeSubscriptions.insert(channel)
+      }
+    } catch {
+      let _: Void = queue.sync {
+        pendingSubscriptions.remove(channel)
+      }
+      throw error
+    }
   }
   
   /// Performs the unsubscribe operation.
   public func unsubscribe(from channel: SubscriptionChannel) async throws {
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-      queue.async {
-        guard self.activeSubscriptions.contains(channel) else {
-          continuation.resume()
-          return
-        }
-        self.activeSubscriptions.remove(channel)
-        continuation.resume()
+    let reserved = queue.sync {
+      guard activeSubscriptions.contains(channel),
+            !pendingSubscriptions.contains(channel) else {
+        return false
       }
+      pendingSubscriptions.insert(channel)
+      return true
     }
-    
-    guard let service = webSocketService else { return }
-    
-    try await service.unsubscribe(channel: channel.channelName, payload: channel.payload)
+    guard reserved else { return }
+
+    do {
+      if let service = webSocketService {
+        try await service.unsubscribe(channel: channel.channelName, payload: channel.payload)
+      }
+      let _: Void = queue.sync {
+        pendingSubscriptions.remove(channel)
+        activeSubscriptions.remove(channel)
+      }
+    } catch {
+      let _: Void = queue.sync {
+        pendingSubscriptions.remove(channel)
+      }
+      throw error
+    }
   }
   
   /// Performs the subscribe operation.
   public func subscribe(to subscription: HyperliquidWebSocketSubscription) async throws {
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-      queue.async {
-        guard !self.activeRawSubscriptions.contains(subscription) else { continuation.resume(); return }
-        self.activeRawSubscriptions.insert(subscription)
-        continuation.resume()
+    let reserved = queue.sync {
+      guard !activeRawSubscriptions.contains(subscription),
+            !pendingRawSubscriptions.contains(subscription) else {
+        return false
       }
+      pendingRawSubscriptions.insert(subscription)
+      return true
     }
-    try await webSocketService?.subscribe(subscription)
+    guard reserved else { return }
+
+    do {
+      try await webSocketService?.subscribe(subscription)
+      let _: Void = queue.sync {
+        pendingRawSubscriptions.remove(subscription)
+        activeRawSubscriptions.insert(subscription)
+      }
+    } catch {
+      let _: Void = queue.sync {
+        pendingRawSubscriptions.remove(subscription)
+      }
+      throw error
+    }
   }
 
   /// Performs the unsubscribe operation.
   public func unsubscribe(from subscription: HyperliquidWebSocketSubscription) async throws {
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-      queue.async {
-        guard self.activeRawSubscriptions.contains(subscription) else { continuation.resume(); return }
-        self.activeRawSubscriptions.remove(subscription)
-        continuation.resume()
+    let reserved = queue.sync {
+      guard activeRawSubscriptions.contains(subscription),
+            !pendingRawSubscriptions.contains(subscription) else {
+        return false
       }
+      pendingRawSubscriptions.insert(subscription)
+      return true
     }
-    try await webSocketService?.unsubscribe(subscription)
+    guard reserved else { return }
+
+    do {
+      try await webSocketService?.unsubscribe(subscription)
+      let _: Void = queue.sync {
+        pendingRawSubscriptions.remove(subscription)
+        activeRawSubscriptions.remove(subscription)
+      }
+    } catch {
+      let _: Void = queue.sync {
+        pendingRawSubscriptions.remove(subscription)
+      }
+      throw error
+    }
   }
 
   /// Performs the is subscribed operation.
@@ -166,24 +216,37 @@ public final class SubscriptionManager: @unchecked Sendable {
     queue.sync { activeRawSubscriptions.contains(subscription) }
   }
 
-  /// Performs the unsubscribe all operation.
+  /// Unsubscribes every currently active subscription while preserving concurrent additions.
   public func unsubscribeAll() async throws {
-    let (channels, rawSubscriptions): ([SubscriptionChannel], [HyperliquidWebSocketSubscription]) = await withCheckedContinuation { continuation in
-      queue.async {
-        let channels = Array(self.activeSubscriptions)
-        let rawSubscriptions = Array(self.activeRawSubscriptions)
-        self.activeSubscriptions.removeAll()
-        self.activeRawSubscriptions.removeAll()
-        continuation.resume(returning: (channels, rawSubscriptions))
-      }
+    let (channels, rawSubscriptions): ([SubscriptionChannel], [HyperliquidWebSocketSubscription]) = queue.sync {
+      let channels = Array(activeSubscriptions)
+      let rawSubscriptions = Array(activeRawSubscriptions)
+      pendingSubscriptions.formUnion(channels)
+      pendingRawSubscriptions.formUnion(rawSubscriptions)
+      return (channels, rawSubscriptions)
     }
 
-    guard let service = webSocketService else { return }
-    for channel in channels {
-      try await service.unsubscribe(channel: channel.channelName)
-    }
-    for subscription in rawSubscriptions {
-      try await service.unsubscribe(subscription)
+    do {
+      if let service = webSocketService {
+        for channel in channels {
+          try await service.unsubscribe(channel: channel.channelName, payload: channel.payload)
+        }
+        for subscription in rawSubscriptions {
+          try await service.unsubscribe(subscription)
+        }
+      }
+      let _: Void = queue.sync {
+        activeSubscriptions.subtract(Set(channels))
+        activeRawSubscriptions.subtract(Set(rawSubscriptions))
+        pendingSubscriptions.subtract(Set(channels))
+        pendingRawSubscriptions.subtract(Set(rawSubscriptions))
+      }
+    } catch {
+      let _: Void = queue.sync {
+        pendingSubscriptions.subtract(channels)
+        pendingRawSubscriptions.subtract(rawSubscriptions)
+      }
+      throw error
     }
   }
   
