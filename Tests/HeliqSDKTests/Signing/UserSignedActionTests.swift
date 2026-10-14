@@ -64,6 +64,30 @@ struct UserSignedActionTests {
     #expect(signature.v == 28)
   }
 
+  // Reference: eth-account encode_typed_data with Hyperliquid's sign_agent schema.
+  @Test func signsAgentApprovalReferenceFixture() async throws {
+    let signer = try Signer(privateKey: "0x0123456789012345678901234567890123456789012345678901234567890123")
+    let signature = try await signer.signUserSigned(
+      primaryType: "HyperliquidTransaction:ApproveAgent",
+      fields: [
+        .init(name: "hyperliquidChain", type: "string"),
+        .init(name: "agentAddress", type: "address"),
+        .init(name: "agentName", type: "string"),
+        .init(name: "nonce", type: "uint64")
+      ],
+      action: [
+        "agentAddress": .string("0x5e9ee1089755c3435139848e47e6635505d5a13a"),
+        "agentName": .string("heliq"),
+        "nonce": .number(1_687_816_341_423)
+      ],
+      isMainnet: false
+    )
+
+    #expect(signature.r == "0x3e422bea121040458499157fd86864f05dff1040ae8cdea353baf6a009e5657c")
+    #expect(signature.s == "0x5d444545fc63e2f086fb463578db80f4df9938b60b689521a27e783236566d8a")
+    #expect(signature.v == 27)
+  }
+
   private var transferFields: [HyperliquidEIP712Field] {
     [
       HyperliquidEIP712Field(name: "hyperliquidChain", type: "string"),

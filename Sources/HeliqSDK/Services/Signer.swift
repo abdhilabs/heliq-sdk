@@ -6,9 +6,7 @@
 //
 
 import Foundation
-import CryptoSwift
-import Web3Core
-import web3swift
+import web3
 
 /// Represents hyperliquid eip712 field data.
 public struct HyperliquidEIP712Field: Sendable, Codable, Equatable {
@@ -28,20 +26,28 @@ public struct HyperliquidEIP712Field: Sendable, Codable, Equatable {
 /// remain explicit until each official EIP-712 schema has a golden fixture.
 public final class Signer: @unchecked Sendable {
   private let privateKeyData: Data
-  private let keystore: PlainKeystore
-  private let account: EthereumAddress
+  private let accountAddress: String
 
   /// Creates a signer.
   public init(privateKey: String) throws {
     let cleanedKey = privateKey.hasPrefix("0x") ? String(privateKey.dropFirst(2)) : privateKey
-    guard let keyData = Data(hexString: cleanedKey), keyData.count == 32,
-          let keystore = PlainKeystore(privateKey: keyData),
-          let account = keystore.addresses?.first else {
+    guard
+      cleanedKey.utf8.count == 64,
+      cleanedKey.utf8.allSatisfy({
+        (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
+      }),
+      let keyData = Data(hexString: cleanedKey)
+    else {
+      throw SigningError.invalidPrivateKey
+    }
+    let publicKey: Data
+    do {
+      publicKey = try KeyUtil.generatePublicKey(from: keyData)
+    } catch {
       throw SigningError.invalidPrivateKey
     }
     self.privateKeyData = keyData
-    self.keystore = keystore
-    self.account = account
+    self.accountAddress = KeyUtil.generateAddress(from: publicKey).asString().lowercased()
   }
 
   /// Legacy arbitrary-message signing is intentionally unsupported because it
@@ -74,7 +80,7 @@ public final class Signer: @unchecked Sendable {
       hashInput.append(0)
       append(UInt64(expiresAfter), to: &hashInput)
     }
-    return hashInput.sha3(.keccak256)
+    return hashInput.web3.keccak256
   }
 
   /// Signs an official user-signed Hyperliquid action (transfers, withdrawals,
@@ -105,7 +111,7 @@ public final class Signer: @unchecked Sendable {
       "message": try jsonObject(message)
     ]
     let data = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
-    let typedData = try EIP712Parser.parse(String(decoding: data, as: UTF8.self))
+    let typedData = try JSONDecoder().decode(TypedData.self, from: data)
     let signed = try signature(typedData)
     let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
     Logger.shared.info("signing operation=user-signed outcome=success elapsed_ms=\(elapsedMs)", category: .signing)
@@ -130,9 +136,9 @@ public final class Signer: @unchecked Sendable {
     do {
       let hash = try Self.actionHash(action: action, nonce: nonce, vaultAddress: vaultAddress, expiresAfter: expiresAfter)
     let connectionID = hash.hexString
-    let typedData = try EIP712Parser.parse("""
+    let typedData = try JSONDecoder().decode(TypedData.self, from: Data("""
     {"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Agent":[{"name":"source","type":"string"},{"name":"connectionId","type":"bytes32"}]},"primaryType":"Agent","domain":{"name":"Exchange","version":"1","chainId":1337,"verifyingContract":"0x0000000000000000000000000000000000000000"},"message":{"source":"\(isMainnet ? "a" : "b")","connectionId":"0x\(connectionID)"}}
-    """)
+    """.utf8))
     let signed = try signature(typedData)
     let elapsedMs = Int(Date().timeIntervalSince(startedAt) * 1_000)
     Logger.shared.info("signing operation=l1 outcome=success elapsed_ms=\(elapsedMs)", category: .signing)
@@ -145,15 +151,15 @@ public final class Signer: @unchecked Sendable {
   }
 
   /// The address.
-  public var address: String { account.address.lowercased() }
+  public var address: String { accountAddress }
 
-  private func signature(_ typedData: EIP712TypedData) throws -> SignatureTypes {
-    let rawSignature = try Web3Signer.signEIP712(typedData, keystore: keystore, account: account)
-    guard rawSignature.count == 65 else { throw SigningError.signingFailed(reason: "Invalid compact signature") }
+  private func signature(_ typedData: TypedData) throws -> SignatureTypes {
+    let rawSignature = try KeyUtil.sign(message: typedData.signableHash(), with: privateKeyData, hashing: false)
+    guard rawSignature.count == 65, rawSignature[64] <= 1 else { throw SigningError.signingFailed(reason: "Invalid compact signature") }
     return SignatureTypes(
       r: "0x" + rawSignature.prefix(32).hexString.drop(while: { $0 == "0" }),
       s: "0x" + rawSignature.dropFirst(32).prefix(32).hexString.drop(while: { $0 == "0" }),
-      v: Int(rawSignature[64]),
+      v: Int(rawSignature[64]) + 27,
       signatureType: .eoa
     )
   }

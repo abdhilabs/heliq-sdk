@@ -26,6 +26,27 @@ struct SignerTests {
     }
   }
   
+  @Test(arguments: [
+    String(repeating: "a", count: 63),
+    String(repeating: "a", count: 65),
+    String(repeating: "g", count: 64),
+    String(repeating: "0", count: 64),
+    "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141",
+    String(repeating: "f", count: 64)
+  ])
+  func rejectsInvalidPrivateKeys(privateKey: String) {
+    let error = #expect(throws: SigningError.self) {
+      try Signer(privateKey: privateKey)
+    }
+    #expect(error?.errorCode == "SIGNING_INVALID_KEY")
+  }
+
+  @Test(arguments: ["", "0x"])
+  func derivesKnownAddress(prefix: String) throws {
+    let signer = try Signer(privateKey: prefix + String(repeating: "0", count: 63) + "1")
+    #expect(signer.address == "0x7e5f4552091a69125d5dfcb7b8c2659029395bdf")
+  }
+
   @Test func signsOfficialL1Fixture() async throws {
     let signer = try Signer(privateKey: "0x0123456789012345678901234567890123456789012345678901234567890123")
     let action = CanonicalMessagePack.Object([("type", .string("dummy")), ("num", .number(100_000_000_000))])

@@ -1,6 +1,6 @@
 # HeliqSDK
 
-A Swift SDK for Hyperliquid DEX, built with Swift 6.0 and async/await concurrency.
+A Swift SDK for Hyperliquid DEX, built with Swift 6.1 and async/await concurrency.
 
 ## Features
 
@@ -235,8 +235,8 @@ See [TEST_PLAN.md](./TEST_PLAN.md) and [PLAN.md](./PLAN.md) for details.
 
 ## Requirements
 
-- Swift 6.0
-- Xcode 16.0+
+- Swift 6.1
+- Xcode 16.3+
 - iOS 16.0+ / macOS 13.0+ (SPM); demo app targets iOS 17.0+
 
 ## License

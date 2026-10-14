@@ -6,8 +6,8 @@
 |------|---------|
 | **Project Name** | HeliqSDK |
 | **Type** | Swift SDK for Hyperliquid DEX |
-| **Languages** | Swift 6.0 |
-| **Xcode Version** | Xcode 16.0+ (required for Swift 6.0) |
+| **Languages** | Swift 6.1 |
+| **Xcode Version** | Xcode 16.3+ (required for Swift 6.1) |
 | **Platforms** | iOS 16.0+, macOS 13.0+ (Catalyst) |
 | **Architecture** | Clean Architecture + Moya-style networking |
 | **Environments** | MAINNET, TESTNET, LOCAL |
@@ -131,7 +131,7 @@ HeliiqSDK/
 │   │           ├── ConvertToMultiSigUseCase.swift
 │   │           └── UsdSendUseCase.swift
 │   └── Services/
-│       ├── Signer.swift               # EIP-712 signing (stub for web3swift)
+│       ├── Signer.swift               # EIP-712 signing (Argent typed-data signing)
 │       ├── WalletService.swift        # Wallet management
 │       ├── KeyManager.swift           # Key management (raw key, Keychain, agent)
 │       └── TransactionBuilder.swift   # Build unsigned transactions
@@ -172,7 +172,7 @@ HeliiqSDK/
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `web3swift` | latest | EIP-712 signing (wrapped by Signer.swift) |
+| `Argent web3.swift` | pinned revision | EIP-712 signing (wrapped by Signer.swift) |
 | `Starscream` | latest | WebSocket client |
 | `MessagePack` | self-contained | Self-implemented MsgPack encoder/decoder for WebSocket (external package had issues) |
 
