@@ -28,7 +28,7 @@ struct InfoView: View {
   @State private var orders: [Order]?
   
   @State private var selectedCoin = "BTC"
-  private enum OrderField: Hashable { case oid, cloid }
+  private enum OrderField: Hashable { case oid, cloid, builder }
   @FocusState private var focusedOrderField: OrderField?
   @State private var orderIdInput = ""
   @State private var cloidInput = ""
@@ -316,11 +316,13 @@ struct InfoView: View {
   private var metadataSection: some View {
     Section("Meta (Perpetual)") {
       if let meta = meta {
+        Text("Loaded \(meta.universe.count) perpetual markets")
+          .accessibilityIdentifier("perpetual_meta_result")
         ForEach(meta.universe.prefix(10)) { asset in
           VStack(alignment: .leading, spacing: 2) {
             Text(asset.name)
               .font(.headline)
-            Text("Asset #\(asset.asset) | Sz: \(asset.szDecimals) | Wei: \(asset.weiDecimals)")
+            Text("Asset #\(asset.asset) | Sz: \(asset.szDecimals) | Wei: \(asset.weiDecimals.map(String.init) ?? "—")")
               .font(.caption)
               .foregroundStyle(.secondary)
             if asset.onlyIsolatedMargin {
@@ -342,6 +344,8 @@ struct InfoView: View {
     
     Section("Spot Meta") {
       if let meta = spotMeta {
+        Text("Loaded \(meta.universe.count) spot markets")
+          .accessibilityIdentifier("spot_meta_result")
         ForEach(Array(meta.universe.prefix(10)), id: \.id) { asset in
           VStack(alignment: .leading, spacing: 2) {
             Text(asset.name)
@@ -366,19 +370,24 @@ struct InfoView: View {
     Section("Builder Fee") {
       TextField("Builder Address", text: $builderAddressInput)
         .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .focused($focusedOrderField, equals: .builder)
+        .submitLabel(.done)
+        .onSubmit { focusedOrderField = nil }
       if let fee = builderFee {
         VStack(alignment: .leading, spacing: 4) {
           Text(fee.builderAddress)
             .font(.caption)
             .foregroundStyle(.secondary)
-          Text("Fee: \(fee.feeBps) bps")
+          Text("Fee: \(String(format: "%.1f", fee.feeBps)) bps")
+            .accessibilityIdentifier("builder_fee_result")
             .font(.headline)
         }
       }
       Button("Fetch Builder Fee") {
         Task { await fetchBuilderFee() }
       }
-      .disabled(builderAddressInput.isEmpty)
+      .disabled(!builderAddressInput.hasPrefix("0x") || !builderAddressInput.isValidEthereumAddress)
     }
   }
   

@@ -152,6 +152,45 @@ final class HeliqSDKDemoUITests: XCTestCase {
     add(screenshot)
   }
 
+  func testInfo_metadataAndBuilderFeeUseTypedSDKWithoutErrors() {
+    app.staticTexts["Settings"].tap()
+    app.buttons["initialize_sdk"].tap()
+    XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
+    app.alerts.buttons["OK"].tap()
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.staticTexts["Info"].tap()
+    app.buttons["Metadata"].tap()
+
+    for (button, result) in [("Load Meta", "perpetual_meta_result"), ("Load Spot Meta", "spot_meta_result")] {
+      let load = app.buttons[button]
+      for _ in 0..<24 {
+        if load.exists && load.isHittable { break }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.8))
+          .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55)))
+      }
+      load.tap()
+      XCTAssertTrue(app.staticTexts[result].waitForExistence(timeout: 20), app.debugDescription)
+      XCTAssertFalse(app.staticTexts[result].label.hasPrefix("Loaded 0 "))
+      XCTAssertFalse(app.staticTexts["info_error"].exists)
+    }
+
+    let builder = app.textFields["Builder Address"]
+    for _ in 0..<24 {
+      if builder.exists && builder.isHittable { break }
+      app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.8))
+        .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55)))
+    }
+    builder.tap()
+    builder.typeText("0x0000000000000000000000000000000000000001\n")
+    XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+    app.buttons["Fetch Builder Fee"].tap()
+    XCTAssertTrue(app.staticTexts["builder_fee_result"].waitForExistence(timeout: 20), app.debugDescription)
+    XCTAssertFalse(app.staticTexts["info_error"].exists)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
   func testInfo_segmentedControl_switchesSections() {
     app.staticTexts["Info"].tap()
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))
