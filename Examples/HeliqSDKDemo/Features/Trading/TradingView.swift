@@ -5,13 +5,15 @@
 //  Created by Abdhilabs on 05/04/26.
 //
 
-import SwiftUI
 import HeliqSDK
+import SwiftUI
+import UIKit
 
 struct TradingView: View {
   @State private var selectedSection: TradingSection = .orders
   @State private var operationResult: String?
-  @State private var isLoading = false
+  @State private var authorizedUsers = ""
+  @State private var threshold = ""
   @State private var errorMessage: String?
   
   private let sdkManager = SDKManager.shared
@@ -55,6 +57,7 @@ struct TradingView: View {
       if let result = operationResult {
         Section("Result") {
           Text(result)
+            .accessibilityIdentifier("trade_result")
             .font(.system(.body, design: .monospaced))
             .foregroundStyle(.green)
         }
@@ -63,37 +66,56 @@ struct TradingView: View {
       if let error = errorMessage {
         Section("Error") {
           Text(error)
+            .accessibilityIdentifier("trade_error")
             .foregroundStyle(.red)
         }
       }
     }
     .navigationTitle("Exchange API")
+    .toolbar {
+      ToolbarItemGroup(placement: .keyboard) {
+        Spacer()
+        Button("Done") {
+          UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
+          )
+        }
+      }
+    }
   }
   
   @ViewBuilder
   private var ordersSection: some View {
     Section("Place Order") {
       PlaceOrderForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Order placed: \(response.status) | ID: \(response.orderId ?? "N/A")"
-      })
+      }, onError: showError)
     }
     
     Section("Bulk Orders") {
       BulkOrdersForm(onSubmit: { response in
-        operationResult = "Bulk orders: \(response.responses.count) responses"
-      })
+        errorMessage = nil
+        let failures = response.responses.compactMap(\.error)
+        operationResult = "Bulk orders: \(response.responses.count - failures.count) accepted, \(failures.count) failed"
+        if !failures.isEmpty { errorMessage = failures.joined(separator: "\n") }
+      }, onError: showError)
     }
     
     Section("Cancel Order") {
       CancelOrderForm(onSubmit: { response in
-        operationResult = "Cancel: \(response.status)"
-      })
+        errorMessage = nil
+        operationResult = response.error == nil ? "Cancel: \(response.status)" : nil
+        errorMessage = response.error
+      }, onError: showError)
     }
     
     Section("Cancel by CLOB ID") {
       CancelByCloidForm(onSubmit: { response in
-        operationResult = "Cancel: \(response.status)"
-      })
+        errorMessage = nil
+        operationResult = response.error == nil ? "Cancel: \(response.status)" : nil
+        errorMessage = response.error
+      }, onError: showError)
     }
     
     Section("Cancel All") {
@@ -106,8 +128,9 @@ struct TradingView: View {
     
     Section("Modify Order") {
       ModifyOrderForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Modify: \(response.status)"
-      })
+      }, onError: showError)
     }
   }
   
@@ -115,14 +138,16 @@ struct TradingView: View {
   private var positionSection: some View {
     Section("Set Leverage") {
       SetLeverageForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Leverage set: \(response.leverage)x"
-      })
+      }, onError: showError)
     }
     
     Section("Set Margin Mode") {
       SetMarginModeForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Margin mode: \(response.status)"
-      })
+      }, onError: showError)
     }
   }
   
@@ -130,32 +155,37 @@ struct TradingView: View {
   private var transfersSection: some View {
     Section("Internal Transfer") {
       TransferForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Transfer: \(response.status) | Hash: \(response.hash ?? "N/A")"
-      })
+      }, onError: showError)
     }
     
     Section("Send to Address") {
       SendToAddressForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Send: \(response.status) | Hash: \(response.hash ?? "N/A")"
-      })
+      }, onError: showError)
     }
     
     Section("Spot Transfer") {
       SpotTransferForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Spot transfer: \(response.status)"
-      })
+      }, onError: showError)
     }
     
     Section("Vault Transfer") {
       VaultTransferForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Vault transfer: \(response.status)"
-      })
+      }, onError: showError)
     }
     
     Section("Update Builder") {
       UpdateBuilderForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Update builder: \(response.status)"
-      })
+      }, onError: showError)
     }
   }
   
@@ -163,32 +193,52 @@ struct TradingView: View {
   private var accountSection: some View {
     Section("Schedule Cancel") {
       ScheduleCancelForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Scheduled cancel: \(response.status) at \(response.scheduledTime)"
-      })
+      }, onError: showError)
     }
     
     Section("Set Referrer") {
       SetReferrerForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "Referrer set: \(response.status)"
-      })
+      }, onError: showError)
     }
     
     Section("Multi-Sig") {
+      TextField("Signer addresses, comma separated", text: $authorizedUsers)
+        .accessibilityIdentifier("trade_multisig_users")
+        .textInputAutocapitalization(.never)
+      TextField("Approval threshold", text: $threshold)
+        .accessibilityIdentifier("trade_multisig_threshold")
+        .keyboardType(.numberPad)
       Button("Convert to Multi-Sig User") {
         Task {
           await convertToMultiSig()
         }
       }
+      .disabled(authorizedUsers.isEmpty || threshold.isEmpty)
     }
     
     Section("USDC Send") {
       UsdSendForm(onSubmit: { response in
+        errorMessage = nil
         operationResult = "USDC send: \(response.status) | Hash: \(response.hash ?? "N/A")"
-      })
+      }, onError: showError)
     }
   }
   
+  private func showError(_ error: Error) {
+    operationResult = nil
+    if let sdkError = error as? any HeliqError {
+      errorMessage = "\(sdkError.errorCode): \(sdkError.errorDescription)"
+    } else {
+      errorMessage = error.localizedDescription
+    }
+  }
+
   private func cancelAll() async {
+    errorMessage = nil
     do {
       let response = try await sdkManager.sdk.exchange.cancelAll()
       operationResult = "Cancelled: \(response.cancelledOrders.count) orders"
@@ -196,16 +246,17 @@ struct TradingView: View {
         errorMessage = "Failed cancels: \(response.failedCancels.count)"
       }
     } catch {
-      errorMessage = error.localizedDescription
+      showError(error)
     }
   }
   
   private func convertToMultiSig() async {
+    errorMessage = nil
     do {
-      let response = try await sdkManager.sdk.exchange.convertToMultiSigUser()
+      let response = try await sdkManager.sdk.exchange.convertToMultiSigUser(authorizedUsers: authorizedUsers.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, threshold: Int(threshold) ?? 0)
       operationResult = "Multi-sig conversion: \(response.status)"
     } catch {
-      errorMessage = error.localizedDescription
+      showError(error)
     }
   }
 }
@@ -218,6 +269,7 @@ struct PlaceOrderForm: View {
   @State private var price = ""
   
   let onSubmit: (OrderResponse) -> Void
+  let onError: (Error) -> Void
   
   enum OrderTypeSelection: String, CaseIterable {
     case market = "Market"
@@ -226,6 +278,7 @@ struct PlaceOrderForm: View {
   
   var body: some View {
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_PlaceOrderForm_asset")
     Picker("Side", selection: $side) {
       Text("Buy").tag(OrderSide.buy)
       Text("Sell").tag(OrderSide.sell)
@@ -238,9 +291,11 @@ struct PlaceOrderForm: View {
     }
     .pickerStyle(.segmented)
     TextField("Size", text: $size)
+      .accessibilityIdentifier("trade_PlaceOrderForm_size")
       .keyboardType(.decimalPad)
     if orderType == .limit {
       TextField("Price", text: $price)
+      .accessibilityIdentifier("trade_PlaceOrderForm_price")
         .keyboardType(.decimalPad)
     }
     Button("Place Order") {
@@ -265,18 +320,17 @@ struct PlaceOrderForm: View {
           onSubmit(response)
         }
       } catch {
-        await MainActor.run {
-          // Handle error
-        }
+        await MainActor.run { onError(error) }
       }
     }
   }
 }
 
 struct BulkOrdersForm: View {
-  @State private var ordersJson = "[{\"asset\":1,\"side\":\"Buy\",\"type\":\"limit\",\"size\":0.01,\"price\":50000}]"
+  @State private var ordersJson = "[{\"asset\":1,\"side\":\"Buy\",\"orderType\":{\"type\":\"limit\"},\"size\":0.01,\"price\":50000,\"reduceOnly\":false}]"
   
   let onSubmit: (BulkOrderResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextEditor(text: $ordersJson)
@@ -288,22 +342,14 @@ struct BulkOrdersForm: View {
   }
   
   private func submit() {
-    // Simplified - in real app would parse JSON
-    let order = OrderRequest(
-      asset: 1,
-      side: .buy,
-      orderType: .limit,
-      size: 0.01,
-      price: 50000
-    )
     Task {
       do {
-        let response = try await SDKManager.shared.sdk.exchange.bulkOrders([order])
+        let response = try await SDKManager.shared.sdk.exchange.bulkOrders(JSONDecoder().decode([OrderRequest].self, from: Data(ordersJson.utf8)))
         await MainActor.run {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -314,11 +360,14 @@ struct CancelOrderForm: View {
   @State private var asset = "1"
   
   let onSubmit: (CancelResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("Order ID", text: $orderId)
+      .accessibilityIdentifier("trade_CancelOrderForm_orderId")
       .textInputAutocapitalization(.never)
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_CancelOrderForm_asset")
     Button("Cancel Order") {
       submit()
     }
@@ -336,7 +385,7 @@ struct CancelOrderForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -347,11 +396,14 @@ struct CancelByCloidForm: View {
   @State private var asset = "1"
   
   let onSubmit: (CancelResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("CLOB ID", text: $cloid)
+      .accessibilityIdentifier("trade_CancelByCloidForm_cloid")
       .textInputAutocapitalization(.never)
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_CancelByCloidForm_asset")
     Button("Cancel by CLOB ID") {
       submit()
     }
@@ -369,7 +421,7 @@ struct CancelByCloidForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -382,14 +434,19 @@ struct ModifyOrderForm: View {
   @State private var price = ""
   
   let onSubmit: (OrderResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("Order ID", text: $orderId)
+      .accessibilityIdentifier("trade_ModifyOrderForm_orderId")
       .textInputAutocapitalization(.never)
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_ModifyOrderForm_asset")
     TextField("New Size (optional)", text: $size)
+      .accessibilityIdentifier("trade_ModifyOrderForm_size")
       .keyboardType(.decimalPad)
     TextField("New Price (optional)", text: $price)
+      .accessibilityIdentifier("trade_ModifyOrderForm_price")
       .keyboardType(.decimalPad)
     Button("Modify Order") {
       submit()
@@ -410,7 +467,7 @@ struct ModifyOrderForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -421,10 +478,13 @@ struct SetLeverageForm: View {
   @State private var leverage = "10"
   
   let onSubmit: (SetLeverageResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_SetLeverageForm_asset")
     TextField("Leverage", text: $leverage)
+      .accessibilityIdentifier("trade_SetLeverageForm_leverage")
       .keyboardType(.numberPad)
     Button("Set Leverage") {
       submit()
@@ -443,7 +503,7 @@ struct SetLeverageForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -454,9 +514,11 @@ struct SetMarginModeForm: View {
   @State private var mode: MarginMode = .cross
   
   let onSubmit: (SetMarginModeResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_SetMarginModeForm_asset")
     Picker("Mode", selection: $mode) {
       Text("Cross").tag(MarginMode.cross)
       Text("Isolated").tag(MarginMode.isolated)
@@ -478,7 +540,7 @@ struct SetMarginModeForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -490,13 +552,17 @@ struct TransferForm: View {
   @State private var asset = "0"
   
   let onSubmit: (TransferResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("To Address", text: $toAddress)
+      .accessibilityIdentifier("trade_TransferForm_toAddress")
       .textInputAutocapitalization(.never)
     TextField("Amount", text: $amount)
+      .accessibilityIdentifier("trade_TransferForm_amount")
       .keyboardType(.decimalPad)
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_TransferForm_asset")
     Button("Transfer") {
       submit()
     }
@@ -516,7 +582,7 @@ struct TransferForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -528,13 +594,17 @@ struct SendToAddressForm: View {
   @State private var asset = "0"
   
   let onSubmit: (SendToAddressResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("Address", text: $address)
+      .accessibilityIdentifier("trade_SendToAddressForm_address")
       .textInputAutocapitalization(.never)
     TextField("Amount", text: $amount)
+      .accessibilityIdentifier("trade_SendToAddressForm_amount")
       .keyboardType(.decimalPad)
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_SendToAddressForm_asset")
     Button("Send to Address") {
       submit()
     }
@@ -553,7 +623,7 @@ struct SendToAddressForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -565,13 +635,17 @@ struct SpotTransferForm: View {
   @State private var asset = "0"
   
   let onSubmit: (SpotTransferResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("To Address", text: $toAddress)
+      .accessibilityIdentifier("trade_SpotTransferForm_toAddress")
       .textInputAutocapitalization(.never)
     TextField("Amount", text: $amount)
+      .accessibilityIdentifier("trade_SpotTransferForm_amount")
       .keyboardType(.decimalPad)
     TextField("Asset (#)", text: $asset)
+      .accessibilityIdentifier("trade_SpotTransferForm_asset")
     Button("Spot Transfer") {
       submit()
     }
@@ -590,7 +664,7 @@ struct SpotTransferForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -602,16 +676,19 @@ struct VaultTransferForm: View {
   @State private var amount = ""
   
   let onSubmit: (VaultTransferResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("Vault Address", text: $vaultAddress)
+      .accessibilityIdentifier("trade_VaultTransferForm_vaultAddress")
       .textInputAutocapitalization(.never)
     Picker("Direction", selection: $isFromVault) {
-      Text("To Vault").tag(true)
-      Text("From Vault").tag(false)
+      Text("To Vault").tag(false)
+      Text("From Vault").tag(true)
     }
     .pickerStyle(.segmented)
     TextField("USDC Amount", text: $amount)
+      .accessibilityIdentifier("trade_VaultTransferForm_amount")
       .keyboardType(.decimalPad)
     Button("Vault Transfer") {
       submit()
@@ -633,7 +710,7 @@ struct VaultTransferForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -641,27 +718,32 @@ struct VaultTransferForm: View {
 
 struct UpdateBuilderForm: View {
   @State private var builderAddress = ""
+  @State private var maxFeeRate = ""
   
   let onSubmit: (UpdateBuilderResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("Builder Address", text: $builderAddress)
+      .accessibilityIdentifier("trade_UpdateBuilderForm_builderAddress")
       .textInputAutocapitalization(.never)
+    TextField("Maximum fee (e.g. 0.01%)", text: $maxFeeRate)
+      .accessibilityIdentifier("trade_UpdateBuilderForm_maxFeeRate")
     Button("Update Builder") {
       submit()
     }
-    .disabled(builderAddress.isEmpty)
+    .disabled(builderAddress.isEmpty || maxFeeRate.isEmpty)
   }
   
   private func submit() {
     Task {
       do {
-        let response = try await SDKManager.shared.sdk.exchange.updateBuilder(builderAddress: builderAddress)
+        let response = try await SDKManager.shared.sdk.exchange.updateBuilder(builderAddress: builderAddress, maxFeeRate: maxFeeRate)
         await MainActor.run {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -671,6 +753,7 @@ struct ScheduleCancelForm: View {
   @State private var timeOffset: TimeInterval = 60
   
   let onSubmit: (ScheduleCancelResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     Picker("Cancel In", selection: $timeOffset) {
@@ -695,7 +778,7 @@ struct ScheduleCancelForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -705,9 +788,11 @@ struct SetReferrerForm: View {
   @State private var referrer = ""
   
   let onSubmit: (SetReferrerResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Referrer Address", text: $referrer)
+    TextField("Referral Code", text: $referrer)
+      .accessibilityIdentifier("trade_SetReferrerForm_referrer")
       .textInputAutocapitalization(.never)
     Button("Set Referrer") {
       submit()
@@ -723,7 +808,7 @@ struct SetReferrerForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }
@@ -734,11 +819,14 @@ struct UsdSendForm: View {
   @State private var amount = ""
   
   let onSubmit: (UsdSendResponse) -> Void
+  let onError: (Error) -> Void
   
   var body: some View {
     TextField("Destination", text: $destination)
+      .accessibilityIdentifier("trade_UsdSendForm_destination")
       .textInputAutocapitalization(.never)
     TextField("Amount", text: $amount)
+      .accessibilityIdentifier("trade_UsdSendForm_amount")
       .keyboardType(.decimalPad)
     Button("Send USDC") {
       submit()
@@ -757,7 +845,7 @@ struct UsdSendForm: View {
           onSubmit(response)
         }
       } catch {
-        // Handle error
+        await MainActor.run { onError(error) }
       }
     }
   }

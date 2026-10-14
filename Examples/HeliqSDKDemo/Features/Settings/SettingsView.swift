@@ -156,6 +156,7 @@ struct SettingsView: View {
       if let error = errorMessage {
         Section("Error") {
           Text(error)
+            .accessibilityIdentifier("settings_error")
             .foregroundStyle(.red)
         }
       }
@@ -204,7 +205,7 @@ struct SettingsView: View {
     } catch {
       await MainActor.run {
         isInitializing = false
-        errorMessage = error.localizedDescription
+        errorMessage = (error as? any HeliqError)?.errorDescription ?? error.localizedDescription
       }
     }
   }

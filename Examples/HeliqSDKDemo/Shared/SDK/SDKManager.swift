@@ -18,7 +18,7 @@ final class SDKManager: @unchecked Sendable {
   private(set) var initializationError: String?
   private(set) var walletAddress: String?
   
-  private var mockWallet: MockWalletService?
+  private var wallet: (any WalletServiceProtocol)?
   
   private init() {}
   
@@ -35,13 +35,21 @@ final class SDKManager: @unchecked Sendable {
     initializationError = nil
     currentEnvironment = environment
     
-    let wallet = MockWalletService()
-    mockWallet = wallet
-    walletAddress = wallet.address
+    let signingWallet: any WalletServiceProtocol
+    if environment == .testnet {
+      let privateKey = try TestnetWalletStore.privateKey(
+        fresh: ProcessInfo.processInfo.arguments.contains("-fresh-testnet-wallet")
+      )
+      signingWallet = try await WalletService(keyManager: KeyManager(privateKey: privateKey))
+    } else {
+      signingWallet = MockWalletService()
+    }
+    wallet = signingWallet
+    walletAddress = signingWallet.address
     
     client = try HeliqClient.Builder()
       .environment(environment)
-      .wallet(wallet)
+      .wallet(signingWallet)
       .build()
     isInitialized = true
   }
@@ -50,7 +58,7 @@ final class SDKManager: @unchecked Sendable {
   func disconnect() {
     isInitialized = false
     client = nil
-    mockWallet = nil
+    wallet = nil
     walletAddress = nil
     initializationError = nil
   }

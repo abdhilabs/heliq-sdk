@@ -26,6 +26,7 @@ struct WalletView: View {
               .font(.caption)
               .foregroundStyle(.secondary)
             Text(address)
+              .accessibilityIdentifier("connected_wallet_address")
               .font(.system(.body, design: .monospaced))
               .textSelection(.enabled)
           }
