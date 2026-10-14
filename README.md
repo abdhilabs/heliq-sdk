@@ -254,6 +254,12 @@ Consumers upgrading from the previous model must unwrap these optional values.
 Custom `InfoRepository` implementations must implement the explicit-address order
 query overloads.
 
+Metadata methods map official market definitions to SDK asset IDs. Perpetual
+`MetaAsset.weiDecimals` is nil because perpetual metadata has no token precision;
+spot precision comes from each market's base token. `BuilderFee.feeBps` is now a
+`Double` to preserve the API's 0.1-bps increments. Builder-fee queries accept an
+explicit `address` or use the configured wallet, just like order queries.
+
 ## Requirements
 
 - Swift 6.1

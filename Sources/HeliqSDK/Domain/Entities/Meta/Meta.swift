@@ -32,8 +32,8 @@ public struct MetaAsset: Sendable, Codable, Identifiable {
   public let name: String
   /// The sz decimals associated with this value.
   public let szDecimals: Int
-  /// The wei decimals associated with this value.
-  public let weiDecimals: Int
+  /// Token precision for spot assets; nil for perpetual metadata.
+  public let weiDecimals: Int?
   /// The is perpetual associated with this value.
   public let isPerpetual: Bool
   /// The only isolated margin associated with this value.
@@ -44,7 +44,7 @@ public struct MetaAsset: Sendable, Codable, Identifiable {
     asset: Int,
     name: String,
     szDecimals: Int,
-    weiDecimals: Int,
+    weiDecimals: Int?,
     isPerpetual: Bool,
     onlyIsolatedMargin: Bool = false
   ) {

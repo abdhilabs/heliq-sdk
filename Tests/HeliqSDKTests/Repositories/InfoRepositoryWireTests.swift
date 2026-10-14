@@ -146,6 +146,62 @@ struct InfoRepositoryWireTests {
     await #expect(throws: ValidationError.self) { try await repo.queryOrderByOid(orderId: "1") }
   }
 
+  @Test func mapsPerpetualMetadataWithoutInventingTokenPrecision() async throws {
+    let repo = repository(responses: [
+      "meta": #"{"universe":[{"name":"BTC","szDecimals":5,"maxLeverage":50},{"name":"ETH","szDecimals":4,"marginMode":"noCross"}]}"#
+    ])
+    let meta = try await repo.getMeta()
+    #expect(meta.universe[0].asset == 0)
+    #expect(meta.universe[0].name == "BTC")
+    #expect(meta.universe[0].szDecimals == 5)
+    #expect(meta.universe[0].weiDecimals == nil)
+    #expect(meta.universe[0].isPerpetual)
+    #expect(meta.universe[1].onlyIsolatedMargin)
+    #expect(meta.spotAssetConfigs.isEmpty)
+  }
+
+  @Test func mapsSpotMarketIndexesAndBaseTokenReferences() async throws {
+    let repo = repository(responses: ["spotMeta": spotMetadata])
+    let meta = try await repo.getSpotMeta()
+    #expect(meta.universe[0].asset == 10_003)
+    #expect(meta.universe[0].szDecimals == 2)
+    #expect(meta.universe[0].weiDecimals == 8)
+    #expect(!meta.universe[0].isPerpetual)
+    #expect(meta.spotAssetConfigs["10003"]?.tokenCfg?.name == "Example Token")
+    #expect(meta.spotAssetConfigs["10003"]?.tokenCfg?.symbol == "TOKEN")
+  }
+
+  @Test func rejectsUnknownSpotTokenReferences() async {
+    let repo = repository(responses: ["spotMeta": spotMetadata.replacingOccurrences(of: "[5,0]", with: "[99,0]")])
+    await #expect(throws: ValidationError.self) { try await repo.getSpotMeta() }
+  }
+
+  @Test func builderFeeUsesBothAddressesAndTenthsOfBasisPoints() async throws {
+    let builder = "0x0000000000000000000000000000000000000001"
+    let repo = repository(
+      responses: ["maxBuilderFee": "1"],
+      expected: ["maxBuilderFee": ["user": .string(address), "builder": .string(builder)]],
+      defaultAddress: address
+    )
+    #expect(try await repo.fetchBuilderFee(builderAddress: builder).feeBps == 0.1)
+    #expect(try await repo.fetchBuilderFee(builderAddress: builder, address: address).feeBps == 0.1)
+  }
+
+  @Test func rejectsMissingUserInvalidBuilderAndNegativeApproval() async {
+    let repo = repository(responses: ["maxBuilderFee": "-1"])
+    await #expect(throws: ValidationError.self) { try await repo.fetchBuilderFee(builderAddress: address) }
+    await #expect(throws: ValidationError.self) {
+      try await repo.fetchBuilderFee(builderAddress: "invalid", address: address)
+    }
+    await #expect(throws: ValidationError.self) {
+      try await repo.fetchBuilderFee(builderAddress: address, address: address)
+    }
+  }
+
+  private var spotMetadata: String {
+    #"{"tokens":[{"name":"TOKEN","index":5,"szDecimals":2,"weiDecimals":8,"fullName":"Example Token"},{"name":"USDC","index":0,"szDecimals":8,"weiDecimals":8}],"universe":[{"name":"@3","index":3,"tokens":[5,0]}]}"#
+  }
+
   private var fill: String {
     #"[{"closedPnl":"1.2","coin":"ETH","crossed":true,"dir":"Close Long","hash":"0xabc","oid":123,"px":"3000.5","side":"A","startPosition":"1","sz":"0.5","time":1724361546645,"fee":"0.1","feeToken":"USDC","tid":42}]"#
   }

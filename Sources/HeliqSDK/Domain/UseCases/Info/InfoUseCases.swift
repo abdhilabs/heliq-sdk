@@ -214,7 +214,8 @@ public final class FetchBuilderFeeUseCase: @unchecked Sendable {
   }
   
   /// Executes the use case.
-  public func execute(builderAddress: String) async throws -> BuilderFee {
-    try await infoRepository.fetchBuilderFee(builderAddress: builderAddress)
+  public func execute(builderAddress: String, address: String? = nil) async throws -> BuilderFee {
+    if let address { return try await infoRepository.fetchBuilderFee(builderAddress: builderAddress, address: address) }
+    return try await infoRepository.fetchBuilderFee(builderAddress: builderAddress)
   }
 }

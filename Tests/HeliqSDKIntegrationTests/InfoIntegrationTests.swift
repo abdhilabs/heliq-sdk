@@ -70,23 +70,15 @@ struct InfoIntegrationTests {
   // MARK: - Metadata
 
   @Test func testIntegration_getMeta() async throws {
-    let repo = makeRepo()
-    do {
-      let result = try await repo.getMeta()
-      #expect(result.universe.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await makeRepo().getMeta()
+    #expect(!result.universe.isEmpty)
+    #expect(result.universe.allSatisfy { $0.isPerpetual && $0.weiDecimals == nil })
   }
 
   @Test func testIntegration_getSpotMeta() async throws {
-    let repo = makeRepo()
-    do {
-      let result = try await repo.getSpotMeta()
-      #expect(result.universe.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await makeRepo().getSpotMeta()
+    #expect(!result.universe.isEmpty)
+    #expect(result.universe.allSatisfy { !$0.isPerpetual && $0.weiDecimals != nil })
   }
 
   @Test func testIntegration_getTime() async throws {
@@ -100,13 +92,8 @@ struct InfoIntegrationTests {
   }
 
   @Test func testIntegration_fetchBuilderFee() async throws {
-    let repo = makeRepo()
-    do {
-      let result = try await repo.fetchBuilderFee(builderAddress: builderAddress)
-      #expect(result.feeBps >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await makeRepo().fetchBuilderFee(builderAddress: builderAddress, address: zeroAddress)
+    #expect(result.feeBps >= 0)
   }
 
   // MARK: - User data

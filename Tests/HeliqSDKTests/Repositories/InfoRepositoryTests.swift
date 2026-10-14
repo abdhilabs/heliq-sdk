@@ -133,6 +133,10 @@ struct MockInfoRepository: InfoRepository {
     return result
   }
   
+  func fetchBuilderFee(builderAddress: String, address: String) async throws -> BuilderFee {
+    try await fetchBuilderFee(builderAddress: builderAddress)
+  }
+
   func fetchBuilderFee(builderAddress: String) async throws -> BuilderFee {
     if let error = fetchBuilderFeeThrowable { throw error }
     guard let result = fetchBuilderFeeResult else { throw APIError.invalidResponse }

@@ -43,6 +43,8 @@ public protocol InfoRepository: Sendable {
   func getTime() async throws -> Date
   /// Performs the fetch builder fee repository operation.
   func fetchBuilderFee(builderAddress: String) async throws -> BuilderFee
+  /// Retrieves a user's approved builder fee in basis points.
+  func fetchBuilderFee(builderAddress: String, address: String) async throws -> BuilderFee
 }
 
 /// Represents a value for spot user state.
@@ -181,11 +183,11 @@ public struct UserFunding: Sendable, Codable {
 public struct BuilderFee: Sendable, Codable {
   /// The builder address associated with this value.
   public let builderAddress: String
-  /// The fee bps associated with this value.
-  public let feeBps: Int
+  /// Maximum approved fee in basis points, including fractional basis points.
+  public let feeBps: Double
   
   /// Creates an instance with the supplied values.
-  public init(builderAddress: String, feeBps: Int) {
+  public init(builderAddress: String, feeBps: Double) {
     self.builderAddress = builderAddress
     self.feeBps = feeBps
   }

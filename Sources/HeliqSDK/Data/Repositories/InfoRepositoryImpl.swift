@@ -252,20 +252,41 @@ public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
 
   /// Performs the get meta operation.
   public func getMeta() async throws -> Meta {
-    let body = InfoRequestBody(type: "meta", user: nil, coin: nil, interval: nil, startTime: nil, endTime: nil)
-    let data = try JSONCoder.encode(body)
-    let request = InfoAPIRequest(endpoint: .meta, body: data)
-    return try await apiClient.request(request) as Meta
+    let response: PerpetualMetadataResponse = try await request(.init(type: .meta))
+    return Meta(
+      universe: response.universe.enumerated().map { index, asset in
+        MetaAsset(asset: index, name: asset.name, szDecimals: asset.szDecimals,
+                  weiDecimals: nil, isPerpetual: true,
+                  onlyIsolatedMargin: (asset.onlyIsolated ?? false) || ["strictIsolated", "noCross"].contains(asset.marginMode ?? ""))
+      },
+      spotAssetConfigs: [:]
+    )
   }
-  
-  /// Performs the get spot meta operation.
+
+  /// Retrieves spot market definitions and their base-token configuration.
   public func getSpotMeta() async throws -> Meta {
-    let body = InfoRequestBody(type: "spotMeta", user: nil, coin: nil, interval: nil, startTime: nil, endTime: nil)
-    let data = try JSONCoder.encode(body)
-    let request = InfoAPIRequest(endpoint: .spotMeta, body: data)
-    return try await apiClient.request(request) as Meta
+    let response: SpotMetadataResponse = try await request(.init(type: .spotMeta))
+    var universe: [MetaAsset] = []
+    var configs: [String: SpotAssetConfig] = [:]
+    for market in response.universe {
+      guard market.tokens.count == 2,
+            let base = response.tokens.first(where: { $0.index == market.tokens[0] }),
+            response.tokens.contains(where: { $0.index == market.tokens[1] }),
+            market.index >= 0, market.index <= Int.max - 10_000 else {
+        throw ValidationError.malformedData(reason: "Invalid spot market token references")
+      }
+      let asset = 10_000 + market.index
+      universe.append(MetaAsset(
+        asset: asset, name: market.name, szDecimals: base.szDecimals,
+        weiDecimals: base.weiDecimals, isPerpetual: false
+      ))
+      configs[String(asset)] = SpotAssetConfig(tokenCfg: TokenConfig(
+        name: base.fullName ?? base.name, symbol: base.name, decimals: base.weiDecimals
+      ))
+    }
+    return Meta(universe: universe, spotAssetConfigs: configs)
   }
-  
+
   /// Performs the get time operation.
   public func getTime() async throws -> Date {
     let body = InfoRequestBody(type: "getTime", user: nil, coin: nil, interval: nil, startTime: nil, endTime: nil)
@@ -277,19 +298,33 @@ public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
   
   /// Performs the fetch builder fee operation.
   public func fetchBuilderFee(builderAddress: String) async throws -> BuilderFee {
-    let body = InfoRequestBody(type: "fetchBuilderFee", user: builderAddress, coin: nil, interval: nil, startTime: nil, endTime: nil)
-    let data = try JSONCoder.encode(body)
-    let request = InfoAPIRequest(endpoint: .fetchBuilderFee, body: data)
-    return try await apiClient.request(request) as BuilderFee
+    guard let address = defaultUserAddress else {
+      throw ValidationError.missingRequiredField(field: "address")
+    }
+    return try await fetchBuilderFee(builderAddress: builderAddress, address: address)
   }
+
+  /// Retrieves builder approval for an explicit user address.
+  public func fetchBuilderFee(builderAddress: String, address: String) async throws -> BuilderFee {
+    try validateAddress(address)
+    try validateAddress(builderAddress, field: "builderAddress")
+    let tenthsOfBps: Int = try await request(.init(type: .maxBuilderFee, parameters: [
+      "user": .string(address), "builder": .string(builderAddress)
+    ]))
+    guard tenthsOfBps >= 0 else {
+      throw ValidationError.malformedData(reason: "Negative builder fee approval")
+    }
+    return BuilderFee(builderAddress: builderAddress, feeBps: Double(tenthsOfBps) / 10)
+  }
+
   private func request<T: Decodable>(_ request: HyperliquidInfoRequest) async throws -> T {
     let data = try await apiClient.requestData(HyperliquidRawRequest(path: "/info", body: request.body()))
     return try JSONDecoder().decode(T.self, from: data)
   }
 
-  private func validateAddress(_ address: String) throws {
+  private func validateAddress(_ address: String, field: String = "address") throws {
     guard address.hasPrefix("0x"), address.isValidEthereumAddress else {
-      throw ValidationError.invalidFieldFormat(field: "address", expected: "0x-prefixed 20-byte hex address")
+      throw ValidationError.invalidFieldFormat(field: field, expected: "0x-prefixed 20-byte hex address")
     }
   }
 
@@ -438,4 +473,31 @@ private struct AssetUniverseResponse: Decodable {
 private struct SpotUniverseResponse: Decodable {
   struct Asset: Decodable { let name: String; let index: Int }
   let universe: [Asset]
+}
+
+private struct PerpetualMetadataResponse: Decodable {
+  struct Asset: Decodable {
+    let name: String
+    let szDecimals: Int
+    let onlyIsolated: Bool?
+    let marginMode: String?
+  }
+  let universe: [Asset]
+}
+
+private struct SpotMetadataResponse: Decodable {
+  struct Token: Decodable {
+    let name: String
+    let index: Int
+    let szDecimals: Int
+    let weiDecimals: Int
+    let fullName: String?
+  }
+  struct Market: Decodable {
+    let name: String
+    let index: Int
+    let tokens: [Int]
+  }
+  let tokens: [Token]
+  let universe: [Market]
 }
