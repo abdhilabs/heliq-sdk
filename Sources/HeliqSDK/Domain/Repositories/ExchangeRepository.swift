@@ -37,14 +37,27 @@ public protocol ExchangeRepository: Sendable {
   func vaultTransfer(vaultTransfer: VaultTransfer) async throws -> VaultTransferResponse
   /// Performs the update builder repository operation.
   func updateBuilder(builderAddress: String) async throws -> UpdateBuilderResponse
+  /// Approves the caller's explicit maximum builder fee percentage.
+  func updateBuilder(builderAddress: String, maxFeeRate: String) async throws -> UpdateBuilderResponse
   /// Performs the schedule cancel repository operation.
   func scheduleCancel(time: Date) async throws -> ScheduleCancelResponse
   /// Performs the set referrer repository operation.
   func setReferrer(referrer: String) async throws -> SetReferrerResponse
   /// Performs the convert to multi sig user repository operation.
   func convertToMultiSigUser() async throws -> ConvertToMultiSigResponse
+  /// Converts the account using explicit signer addresses and approval threshold.
+  func convertToMultiSigUser(authorizedUsers: [String], threshold: Int) async throws -> ConvertToMultiSigResponse
   /// Performs the usd send repository operation.
   func usdSend(destination: String, amount: Double) async throws -> UsdSendResponse
+}
+
+public extension ExchangeRepository {
+  func updateBuilder(builderAddress: String, maxFeeRate: String) async throws -> UpdateBuilderResponse {
+    throw ValidationError.malformedData(reason: "Repository does not implement builder fee approval")
+  }
+  func convertToMultiSigUser(authorizedUsers: [String], threshold: Int) async throws -> ConvertToMultiSigResponse {
+    throw ValidationError.malformedData(reason: "Repository does not implement multisig conversion")
+  }
 }
 
 /// Represents a value for order response.

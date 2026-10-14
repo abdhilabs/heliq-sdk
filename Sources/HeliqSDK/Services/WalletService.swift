@@ -23,6 +23,13 @@ public final class WalletService: WalletServiceProtocol, @unchecked Sendable {
   public func sign(message: String) async throws -> SignatureTypes {
     try await keyManager.sign(message: message)
   }
+  public func signL1(action: CanonicalMessagePack.Object, nonce: Int64, isMainnet: Bool) async throws -> SignatureTypes {
+    try await keyManager.signL1(action: action, nonce: nonce, isMainnet: isMainnet)
+  }
+  public func signUserSigned(primaryType: String, fields: [HyperliquidEIP712Field], action: [String: JSONValue], isMainnet: Bool) async throws -> SignatureTypes {
+    try await keyManager.signUserSigned(primaryType: primaryType, fields: fields, action: action, isMainnet: isMainnet)
+  }
+
 }
 
 /// Provides key manager functionality.
@@ -76,4 +83,13 @@ public final class KeyManager: @unchecked Sendable {
     }
     return try await signer.sign(message: message)
   }
+  public func signL1(action: CanonicalMessagePack.Object, nonce: Int64, isMainnet: Bool) async throws -> SignatureTypes {
+    guard let signer else { throw SigningError.keyNotFound }
+    return try await signer.signL1(action: action, nonce: nonce, isMainnet: isMainnet)
+  }
+  public func signUserSigned(primaryType: String, fields: [HyperliquidEIP712Field], action: [String: JSONValue], isMainnet: Bool) async throws -> SignatureTypes {
+    guard let signer else { throw SigningError.keyNotFound }
+    return try await signer.signUserSigned(primaryType: primaryType, fields: fields, action: action, isMainnet: isMainnet)
+  }
+
 }

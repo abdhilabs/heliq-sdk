@@ -111,7 +111,7 @@ let result = try await HeliqSDK.shared.raw.info(.init(
     parameters: ["user": .string("0x...")]
 ))
 
-// Signed Exchange actions. Sign EIP-712 action externally until native signer is available.
+// Raw Exchange actions accept signatures from the native signer or an external wallet.
 let action = HyperliquidExchangeAction(type: .twapOrder, parameters: [
     "twap": .object([/* official action fields */])
 ])
@@ -158,23 +158,50 @@ All official Info request types are available through `HyperliquidInfoType` and 
 | SDK method | Action `type` |
 |---|---|
 | `placeOrder` | `order` |
-| `bulkOrders` | `bulkOrders` |
+| `bulkOrders` | `order` |
 | `cancelOrder` | `cancel` |
 | `cancelByCloid` | `cancelByCloid` |
-| `cancelAll` | `cancelAll` |
-| `modifyOrder` | `modify` |
-| `modifyByCloid` | `modifyByCloid` |
-| `setLeverage` | `setLeverage` |
-| `setMarginMode` | `setMarginMode` |
-| `transfer` | `transfer` |
-| `sendToAddress` | `sendToAddress` |
-| `spotTransfer` | `spotTransfer` |
+| `cancelAll` | `openOrders` query then `cancel` |
+| `modifyOrder` | `batchModify` |
+| `modifyByCloid` | `batchModify` |
+| `setLeverage` | `updateLeverage` |
+| `setMarginMode` | `updateLeverage` |
+| `transfer` | `usdSend` or `spotSend` |
+| `sendToAddress` | `usdSend` or `spotSend` |
+| `spotTransfer` | `spotSend` |
 | `vaultTransfer` | `vaultTransfer` |
-| `updateBuilder` | `updateBuilder` |
+| `updateBuilder(builderAddress:maxFeeRate:)` | `approveBuilderFee` |
 | `scheduleCancel` | `scheduleCancel` |
 | `setReferrer` | `setReferrer` |
-| `convertToMultiSigUser` | `convertToMultiSig` |
+| `convertToMultiSigUser(authorizedUsers:threshold:)` | `convertToMultiSigUser` |
 | `usdSend` | `usdSend` |
+
+Typed actions call the wallet's `signL1` or `signUserSigned` implementation and send
+`{action, nonce, signature}`. `WalletService(keyManager:)` implements both with the
+native signer. Legacy wallets implementing only `sign(message:)` must add these
+protocol methods; they now fail explicitly instead of submitting unsigned requests.
+
+Market orders are IOC limit orders using current mids, 5% slippage, and official
+price rounding; supply `OrderRequest.price` to set an explicit bound. Modification
+queries the existing open order and preserves its side, reduce-only flag, trigger,
+and time in force in the submitted request. Hyperliquid can override a non-executable
+Gtc modification to Alo. Client-ID modifications resolve the current open order
+when historical lookup still returns its canceled predecessor.
+Leverage/margin changes preserve the other setting.
+
+For transfers, `asset: 0` means perpetual USDC; other values are spot token indices.
+`spotTransfer` always uses a `spotMeta.tokens` index (including 0 for spot USDC),
+not an order market index. `transfer.fromAddress` must equal the signing wallet.
+Unified accounts and portfolio-margin accounts use `sendAsset` for these transfers;
+standard accounts retain the legacy `usdSend` and `spotSend` actions.
+Vault amounts are USDC units and are encoded as integer micro-USDC. Referrers are
+referral codes. Builder approval requires an explicit fee percentage; multisig
+conversion requires explicit signer addresses and threshold. The old parameterless
+forms throw a validation error rather than inventing account permissions.
+
+Order/cancel responses preserve per-item failures; single-order submissions throw
+on rejection. Check every bulk response and cancellation result before reporting
+success. Exchange mutations are never automatically retried.
 
 ### Exchange API — raw transport coverage
 

@@ -2,7 +2,7 @@
 
 ## Initialize the SDK
 
-Create a type that conforms to ``WalletServiceProtocol``. Its `address` is the account address and its `sign(message:)` implementation must delegate to a secure signing implementation owned by your application.
+Create a type that conforms to ``WalletServiceProtocol``. Its `address` is the account address. Implement `signL1` and `signUserSigned` for trading, or use the native `WalletService(keyManager:)`. Private key custody remains the application’s responsibility.
 
 ```swift
 HeliqSDK.shared.initialize { builder in

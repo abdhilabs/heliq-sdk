@@ -359,7 +359,11 @@ public enum HyperliquidExchangeActionType: Sendable, Hashable, Codable {
   /// The `custom` case.
   case custom(String)
   /// The raw value value.
-  public var rawValue: String { if case .custom(let v) = self { return v }; return String(describing: self) }
+  public var rawValue: String {
+    if case .custom(let value) = self { return value }
+    if case .convertToMultiSig = self { return "convertToMultiSigUser" }
+    return String(describing: self)
+  }
 }
 
 /// Represents a value for hyperliquid exchange action.
@@ -374,8 +378,7 @@ public struct HyperliquidExchangeAction: Sendable, Codable {
   public func body() -> [String: JSONValue] { parameters.merging(["type": .string(type.rawValue)]) { _, new in new } }
 }
 
-/// A signed envelope for `/exchange`. Signatures are externally generated until
-/// the SDK's native EIP-712 signing implementation is completed.
+/// A signed envelope for `/exchange`, using the native signer or an external wallet.
 public struct HyperliquidExchangeEnvelope: Sendable, Codable {
   /// The action associated with this value.
   public let action: HyperliquidExchangeAction

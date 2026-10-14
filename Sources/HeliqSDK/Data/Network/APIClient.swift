@@ -10,7 +10,7 @@ import Foundation
 /// Provides apiclient functionality.
 public final class APIClient: @unchecked Sendable {
   private let session: URLSession
-  private let environment: HeliqEnvironment
+  let environment: HeliqEnvironment
   private let retryPolicy: RetryPolicy
   private let rateLimitHandler: RateLimitHandler
   
