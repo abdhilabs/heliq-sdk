@@ -14,12 +14,123 @@ final class HeliqSDKDemoUITests: XCTestCase {
   override func setUpWithError() throws {
     continueAfterFailure = false
     app = XCUIApplication()
-    app.launchArguments += ["-ui-testing"]
+    app.launchArguments += ["-ui-testing", "-fresh-testnet-wallet"]
     app.launch()
   }
 
   override func tearDownWithError() throws {
     app = nil
+  }
+
+  func testTestnetWalletPersistsAcrossDisconnectAndRelaunch() throws {
+    app.terminate()
+    app.launchArguments = ["-ui-testing"]
+    app.launch()
+    func initializeTestnet() {
+      app.staticTexts["Settings"].tap()
+      app.staticTexts["Testnet"].tap()
+      reachTradingControl(app.buttons["initialize_sdk"])
+      app.buttons["initialize_sdk"].tap()
+      let initialized = app.alerts["SDK Initialized"].waitForExistence(timeout: 10)
+      if !initialized {
+        let error = app.staticTexts["settings_error"]
+        reachTradingControl(error)
+        XCTFail(error.label)
+      }
+      app.alerts.buttons["OK"].tap()
+      app.navigationBars.buttons.element(boundBy: 0).tap()
+      app.staticTexts["Wallet"].tap()
+    }
+    initializeTestnet()
+    let address = app.staticTexts["connected_wallet_address"]
+    XCTAssertTrue(address.waitForExistence(timeout: 5))
+    let first = address.label
+    XCTAssertEqual(first.count, 42)
+    if let expected = ProcessInfo.processInfo.environment["HELIQ_EXPECTED_TESTNET_ADDRESS"] {
+      XCTAssertEqual(first.lowercased(), expected.lowercased())
+    }
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.staticTexts["Settings"].tap()
+    reachTradingControl(app.buttons["Disconnect SDK"])
+    app.buttons["Disconnect SDK"].tap()
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    initializeTestnet()
+    XCTAssertEqual(app.staticTexts["connected_wallet_address"].label, first)
+    app.terminate()
+    app.launch()
+    initializeTestnet()
+    XCTAssertEqual(app.staticTexts["connected_wallet_address"].label, first)
+  }
+
+  func testFundedTradingPlaceModifyCancel() throws {
+    guard ProcessInfo.processInfo.environment["HELIQ_FUNDED_UI_TESTS"] == "1" else {
+      throw XCTSkip("Funded testnet UI run is opt-in")
+    }
+    app.terminate()
+    app.launchArguments = ["-ui-testing"]
+    app.launch()
+    app.staticTexts["Settings"].tap()
+    app.staticTexts["Testnet"].tap()
+    reachTradingControl(app.buttons["initialize_sdk"])
+    app.buttons["initialize_sdk"].tap()
+    XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
+    app.alerts.buttons["OK"].tap()
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.staticTexts["Wallet"].tap()
+    XCTAssertEqual(app.staticTexts["connected_wallet_address"].label, "0x444483eba5faa8a1499a4d2261c5e4e927b558cf")
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.staticTexts["Trading"].tap()
+    func fill(_ identifier: String, _ value: String) {
+      let input = app.textFields[identifier]
+      reachTradingControl(input)
+      input.tap()
+      let current = input.value as? String ?? ""
+      if !current.isEmpty, current != input.placeholderValue {
+        input.doubleTap()
+        let selectAll = app.menuItems["Select All"]
+        if selectAll.exists { selectAll.tap() }
+        else if app.buttons["Select All"].exists { app.buttons["Select All"].tap() }
+      }
+      input.typeText(value)
+      XCTAssertEqual(input.value as? String, value)
+      app.buttons["Done"].tap()
+      XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+    }
+    func result(prefix: String) -> String {
+      let output = app.staticTexts["trade_result"]
+      for _ in 0..<30 {
+        if app.staticTexts["trade_error"].exists { XCTFail(app.staticTexts["trade_error"].label) }
+        if output.exists && output.isHittable { break }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.8))
+          .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55)))
+      }
+      let predicate = NSPredicate(format: "label BEGINSWITH %@", prefix)
+      XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: predicate, object: output)], timeout: 15), .completed)
+      XCTAssertFalse(app.staticTexts["trade_error"].exists)
+      return output.label
+    }
+    // Testnet BTC is asset 3; asset 0 is SOL and only permits two size decimals.
+    fill("trade_PlaceOrderForm_asset", "3")
+    fill("trade_PlaceOrderForm_size", "0.0003")
+    fill("trade_PlaceOrderForm_price", "50000")
+    app.buttons["Place Order"].tap()
+    let placed = result(prefix: "Order placed: resting")
+    let oid = try XCTUnwrap(placed.components(separatedBy: "ID: ").last)
+    XCTAssertTrue(oid.allSatisfy(\.isNumber))
+    for _ in 0..<10 { app.swipeDown() }
+    fill("trade_ModifyOrderForm_orderId", oid)
+    fill("trade_ModifyOrderForm_asset", "3")
+    fill("trade_ModifyOrderForm_price", "49000")
+    reachTradingControl(app.buttons["Modify Order"])
+    app.buttons["Modify Order"].tap()
+    _ = result(prefix: "Modify: resting")
+    for _ in 0..<10 { app.swipeDown() }
+    reachTradingControl(app.buttons["Cancel All Orders"])
+    app.buttons["Cancel All Orders"].tap()
+    _ = result(prefix: "Cancelled: 1 orders")
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
   }
 
   // MARK: - Home
@@ -55,6 +166,11 @@ final class HeliqSDKDemoUITests: XCTestCase {
   }
 
   func testInfo_loadAllMidsShowsResultOrError() {
+    app.staticTexts["Settings"].tap()
+    app.buttons["initialize_sdk"].tap()
+    XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
+    app.alerts.buttons["OK"].tap()
+    app.navigationBars.buttons.element(boundBy: 0).tap()
     app.staticTexts["Info"].tap()
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))
 
@@ -226,6 +342,15 @@ final class HeliqSDKDemoUITests: XCTestCase {
       XCTAssertTrue(app.buttons[tab].exists || app.staticTexts[tab].exists,
                     "Missing trading tab: \(tab)")
     }
+  }
+
+  private func reachTradingControl(_ element: XCUIElement) {
+    for _ in 0..<30 {
+      if element.exists && element.isHittable { return }
+      app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.8))
+        .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55)))
+    }
+    XCTAssertTrue(element.isHittable, app.debugDescription)
   }
 
   // MARK: - WebSocket
