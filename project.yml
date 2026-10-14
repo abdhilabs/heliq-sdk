@@ -2,7 +2,7 @@ name: HeliqSDK
 options:
   bundleIdPrefix: com.heliq
   deploymentTarget:
-    iOS: "17.0"
+    iOS: "16.0"
     macOS: "13.0"
   xcodeVersion: "16.0"
   generateEmptyDirectories: true
@@ -75,8 +75,7 @@ targets:
   HeliqSDKDemo:
     type: application
     platform: iOS
-    deploymentTarget:
-      iOS: "17.0"
+    deploymentTarget: "17.0"
     sources:
       - path: Examples/HeliqSDKDemo
         excludes:
@@ -122,6 +121,7 @@ targets:
   HeliqSDKDemoUITests:
     type: bundle.ui-testing
     platform: iOS
+    deploymentTarget: "17.0"
     sources:
       - path: Examples/HeliqSDKDemoUITests
     settings:
