@@ -93,6 +93,65 @@ final class HeliqSDKDemoUITests: XCTestCase {
     add(screenshot)
   }
 
+  func testInfo_userDataQueriesReturnResultsWithoutErrors() {
+    app.staticTexts["Settings"].tap()
+    app.buttons["initialize_sdk"].tap()
+    XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
+    app.alerts.buttons["OK"].tap()
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.staticTexts["Info"].tap()
+    app.buttons["User Data"].tap()
+    app.buttons["Use Demo Wallet"].tap()
+
+    for (button, result) in [
+      ("Load User State", "user_state_result"),
+      ("Load Spot User State", "spot_user_state_result"),
+      ("Load Fills", "fills_result"),
+      ("Load Fundings", "fundings_result")
+    ] {
+      let load = app.buttons[button]
+      for _ in 0..<24 {
+        if load.exists && load.isHittable { break }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.8))
+          .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55)))
+      }
+      XCTAssertTrue(load.isHittable, button + app.debugDescription)
+      load.tap()
+      XCTAssertTrue(app.staticTexts[result].waitForExistence(timeout: 20), button + app.debugDescription)
+      XCTAssertFalse(app.staticTexts["info_error"].exists, button)
+    }
+
+    for (field, value, button) in [
+      ("Order ID", "1", "Query by OID"),
+      ("CLOB ID (cloid)", "0x00000000000000000000000000000001", "Query by CLOB ID")
+    ] {
+      let input = app.textFields[field]
+      for _ in 0..<24 {
+        if input.exists && input.isHittable { break }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.8))
+          .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55)))
+      }
+      input.tap()
+      input.typeText(value)
+      XCTAssertEqual(input.value as? String, value, app.debugDescription)
+      input.typeText("\n")
+      XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+      let query = app.buttons[button]
+      for _ in 0..<6 {
+        if query.isHittable { break }
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.8))
+          .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55)))
+      }
+      query.tap()
+      XCTAssertTrue(app.staticTexts["orders_result"].waitForExistence(timeout: 20), app.debugDescription)
+      XCTAssertEqual(app.staticTexts["orders_result"].label.filter { !$0.isWhitespace }, "[]")
+      XCTAssertFalse(app.staticTexts["info_error"].exists, button)
+    }
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
   func testInfo_segmentedControl_switchesSections() {
     app.staticTexts["Info"].tap()
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))

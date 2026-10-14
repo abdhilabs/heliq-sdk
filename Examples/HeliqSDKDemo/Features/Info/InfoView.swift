@@ -20,14 +20,16 @@ struct InfoView: View {
   @State private var candles: [Candle] = []
   @State private var userState: UserState?
   @State private var spotUserState: SpotUserState?
-  @State private var fills: [Fill] = []
-  @State private var userFundings: [UserFunding] = []
+  @State private var fills: [Fill]?
+  @State private var userFundings: [UserFunding]?
   @State private var meta: Meta?
   @State private var spotMeta: Meta?
   @State private var builderFee: BuilderFee?
-  @State private var orders: [Order] = []
+  @State private var orders: [Order]?
   
   @State private var selectedCoin = "BTC"
+  private enum OrderField: Hashable { case oid, cloid }
+  @FocusState private var focusedOrderField: OrderField?
   @State private var orderIdInput = ""
   @State private var cloidInput = ""
   @State private var userAddressInput = ""
@@ -229,6 +231,10 @@ struct InfoView: View {
     Section("User Address") {
       TextField("Wallet Address", text: $userAddressInput)
         .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+      Text("Enter a 0x-prefixed wallet address. Never fund the public demo wallet.")
+        .font(.caption)
+        .foregroundStyle(.secondary)
       if sdkManager.walletAddress != nil && userAddressInput.isEmpty {
         Button("Use Demo Wallet") {
           userAddressInput = sdkManager.walletAddress ?? ""
@@ -239,86 +245,70 @@ struct InfoView: View {
     
     Section("User State (Perpetual)") {
       if let state = userState {
-        UserStateView(userState: state)
+        userResponse(state, identifier: "user_state_result")
       }
       Button("Load User State") {
         Task { await loadUserState() }
       }
-      .disabled(userAddressInput.isEmpty)
+      .disabled(!userAddressInput.hasPrefix("0x") || !userAddressInput.isValidEthereumAddress)
     }
     
     Section("Spot User State") {
       if let state = spotUserState {
-        SpotUserStateView(spotState: state)
+        userResponse(state, identifier: "spot_user_state_result")
       }
       Button("Load Spot User State") {
         Task { await loadSpotUserState() }
       }
-      .disabled(userAddressInput.isEmpty)
+      .disabled(!userAddressInput.hasPrefix("0x") || !userAddressInput.isValidEthereumAddress)
     }
     
     Section("Fills") {
-      if !fills.isEmpty {
-        ForEach(fills) { fill in
-          VStack(alignment: .leading, spacing: 4) {
-            HStack {
-              Text(fill.symbol)
-                .font(.headline)
-              Text(fill.side.rawValue)
-                .foregroundStyle(fill.side == .buy ? .green : .red)
-              Spacer()
-              Text(String(format: "%.4f @ %.2f", fill.size, fill.price))
-                .font(.system(.caption, design: .monospaced))
-            }
-            Text("Fee: \(String(format: "%.2f", fill.fee)) | \(formatDate(fill.timestamp))")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-        }
+      if let fills {
+        userResponse(fills, identifier: "fills_result")
       }
       Button("Load Fills") {
         Task { await loadFills() }
       }
-      .disabled(userAddressInput.isEmpty)
+      .disabled(!userAddressInput.hasPrefix("0x") || !userAddressInput.isValidEthereumAddress)
     }
     
     Section("User Fundings") {
-      if !userFundings.isEmpty {
-        ForEach(userFundings, id: \.time) { funding in
-          HStack {
-            Text("Asset #\(funding.asset)")
-              .font(.headline)
-            Spacer()
-            Text(String(format: "%.4f", funding.payment))
-              .foregroundStyle(funding.payment >= 0 ? .green : .red)
-          }
-          Text("Rate: \(String(format: "%.6f", funding.rate)) | \(formatDate(funding.time))")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
+      if let userFundings {
+        userResponse(userFundings, identifier: "fundings_result")
       }
       Button("Load Fundings") {
         Task { await loadUserFundings() }
       }
-      .disabled(userAddressInput.isEmpty)
+      .disabled(!userAddressInput.hasPrefix("0x") || !userAddressInput.isValidEthereumAddress)
     }
     
     Section("Order Queries") {
+      if let orders {
+        userResponse(orders, identifier: "orders_result")
+      }
       TextField("Order ID", text: $orderIdInput)
         .textInputAutocapitalization(.never)
+        .focused($focusedOrderField, equals: .oid)
+        .submitLabel(.done)
+        .onSubmit { focusedOrderField = nil }
       Button("Query by OID") {
         Task { await queryOrderByOid() }
       }
-      .disabled(orderIdInput.isEmpty)
+      .disabled(!userAddressInput.isValidEthereumAddress || (Int64(orderIdInput).map { $0 >= 0 } != true))
       
       Divider()
       
       TextField("CLOB ID (cloid)", text: $cloidInput)
         .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .focused($focusedOrderField, equals: .cloid)
+        .submitLabel(.done)
+        .onSubmit { focusedOrderField = nil }
       Button("Query by CLOB ID") {
         Task { await queryOrderByCloid() }
       }
-      .disabled(cloidInput.isEmpty)
+      .disabled(!userAddressInput.isValidEthereumAddress || !cloidInput.hasPrefix("0x") || cloidInput.count != 34 || !cloidInput.isValidHex)
     }
   }
   
@@ -411,6 +401,20 @@ struct InfoView: View {
     }
   }
   
+  private func userResponse<T: Encodable>(_ response: T, identifier: String) -> some View {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let text = (try? encoder.encode(response)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+    return ScrollView {
+      Text(text)
+        .font(.system(.caption, design: .monospaced))
+        .textSelection(.enabled)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier(identifier)
+    }
+    .frame(height: 200)
+  }
+
   private func performInfoRequest(_ operation: () async throws -> Void) async {
     isLoading = true
     errorMessage = nil
@@ -498,16 +502,18 @@ struct InfoView: View {
   }
   
   private func queryOrderByOid() async {
-    guard !orderIdInput.isEmpty else { return }
+    guard let oid = Int64(orderIdInput), oid >= 0 else { return }
     await performInfoRequest {
-      orders = try await sdkManager.sdk.info.queryOrderByOid(orderId: orderIdInput)
+      orders = nil
+      orders = try await sdkManager.sdk.info.queryOrderByOid(orderId: String(oid), address: userAddressInput)
     }
   }
   
   private func queryOrderByCloid() async {
     guard !cloidInput.isEmpty else { return }
     await performInfoRequest {
-      orders = try await sdkManager.sdk.info.queryOrderByCloid(cloid: cloidInput)
+      orders = nil
+      orders = try await sdkManager.sdk.info.queryOrderByCloid(cloid: cloidInput, address: userAddressInput)
     }
   }
   
