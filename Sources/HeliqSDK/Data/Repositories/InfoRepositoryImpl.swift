@@ -137,7 +137,8 @@ public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
       endTime: endTime
     ).data()
     let request = InfoAPIRequest(endpoint: .candleSnapshot, body: data)
-    return try await apiClient.request(request) as [Candle]
+    let response: [CandleResponse] = try await apiClient.request(request)
+    return try response.map { try $0.candle() }
   }
   
   /// Performs the get l2 book operation.
@@ -221,5 +222,26 @@ private struct TimeResponse: Decodable {
   
   var date: Date {
     Date(timeIntervalSince1970: Double(time) / 1000)
+  }
+}
+
+private struct CandleResponse: Decodable {
+  let t: Int64
+  let o: String
+  let h: String
+  let l: String
+  let c: String
+  let v: String
+
+  func candle() throws -> Candle {
+    guard let open = Double(o), let high = Double(h), let low = Double(l),
+          let close = Double(c), let volume = Double(v),
+          [open, high, low, close, volume].allSatisfy({ $0.isFinite }) else {
+      throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Invalid candle decimal"))
+    }
+    return Candle(
+      timestamp: Date(timeIntervalSince1970: Double(t) / 1_000),
+      open: open, high: high, low: low, close: close, volume: volume
+    )
   }
 }

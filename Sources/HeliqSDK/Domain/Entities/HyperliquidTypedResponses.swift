@@ -25,8 +25,8 @@ public struct HyperliquidPageRequest: Sendable, Equatable {
 
   /// The parameters value.
   public var parameters: [String: JSONValue] {
-    var result: [String: JSONValue] = ["startTime": .number(startTime.timeIntervalSince1970 * 1_000)]
-    if let endTime { result["endTime"] = .number(endTime.timeIntervalSince1970 * 1_000) }
+    var result: [String: JSONValue] = ["startTime": .number((startTime.timeIntervalSince1970 * 1_000).rounded(.towardZero))]
+    if let endTime { result["endTime"] = .number((endTime.timeIntervalSince1970 * 1_000).rounded(.towardZero)) }
     if let limit { result["limit"] = .number(Double(limit)) }
     return result
   }

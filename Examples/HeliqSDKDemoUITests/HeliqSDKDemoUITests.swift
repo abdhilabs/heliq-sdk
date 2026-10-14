@@ -65,6 +65,34 @@ final class HeliqSDKDemoUITests: XCTestCase {
     XCTAssertTrue(result || error, "Info request must show data or a visible error")
   }
 
+  func testInfo_loadCandlesShowsChartWithoutError() {
+    app.staticTexts["Settings"].tap()
+    app.buttons["initialize_sdk"].tap()
+    XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
+    app.alerts.buttons["OK"].tap()
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.staticTexts["Info"].tap()
+
+    let load = app.buttons["Load Candles"]
+    for _ in 0..<8 {
+      if load.exists && load.isHittable { break }
+      app.swipeUp()
+    }
+    XCTAssertTrue(load.isHittable)
+    app.buttons["15m"].tap()
+    load.tap()
+
+    let chart = app.staticTexts["Candlestick - BTC"]
+    XCTAssertTrue(chart.waitForExistence(timeout: 20), app.debugDescription)
+    app.swipeUp()
+    let latest = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Latest: '")).firstMatch
+    XCTAssertTrue(latest.isHittable)
+    XCTAssertFalse(app.staticTexts["Error"].exists)
+    let screenshot = XCTAttachment(screenshot: app.screenshot())
+    screenshot.lifetime = .keepAlways
+    add(screenshot)
+  }
+
   func testInfo_segmentedControl_switchesSections() {
     app.staticTexts["Info"].tap()
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))

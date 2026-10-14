@@ -66,18 +66,18 @@ struct HyperliquidInfoRequestTests {
 
   @Test func userFillsByTimeUsesOfficialTypeAndInclusiveBounds() throws {
     let body = try HyperliquidInfoRequest.userFillsByTime(
-      user: "0xabc", startTime: Date(timeIntervalSince1970: 1), endTime: Date(timeIntervalSince1970: 2)
+      user: "0xabc", startTime: Date(timeIntervalSince1970: 1.1234), endTime: Date(timeIntervalSince1970: 2.4567)
     ).data()
     let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]
 
     #expect(object?["type"] as? String == "userFillsByTime")
-    #expect(object?["startTime"] as? Int == 1_000)
-    #expect(object?["endTime"] as? Int == 2_000)
+    #expect(object?["startTime"] as? Int == 1_123)
+    #expect(object?["endTime"] as? Int == 2_456)
   }
 
   @Test func candleSnapshotNestsRequestUnderReq() throws {
     let body = try HyperliquidInfoRequest.candleSnapshot(
-      coin: "BTC", interval: "1h", startTime: Date(timeIntervalSince1970: 1), endTime: Date(timeIntervalSince1970: 2)
+      coin: "BTC", interval: "1h", startTime: Date(timeIntervalSince1970: 1.1234), endTime: Date(timeIntervalSince1970: 2.4567)
     ).data()
     let object = try JSONSerialization.jsonObject(with: body) as? [String: Any]
     let request = object?["req"] as? [String: Any]
@@ -85,7 +85,7 @@ struct HyperliquidInfoRequestTests {
     #expect(object?["type"] as? String == "candleSnapshot")
     #expect(request?["coin"] as? String == "BTC")
     #expect(request?["interval"] as? String == "1h")
-    #expect(request?["startTime"] as? Int == 1_000)
-    #expect(request?["endTime"] as? Int == 2_000)
+    #expect(request?["startTime"] as? Int == 1_123)
+    #expect(request?["endTime"] as? Int == 2_456)
   }
 }

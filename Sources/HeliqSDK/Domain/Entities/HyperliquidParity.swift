@@ -269,9 +269,9 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
   public static func userFillsByTime(user: String, startTime: Date, endTime: Date? = nil) -> Self {
     var parameters: [String: JSONValue] = [
       "user": .string(user),
-      "startTime": .number(Double(startTime.timeIntervalSince1970 * 1_000))
+      "startTime": .number((startTime.timeIntervalSince1970 * 1_000).rounded(.towardZero))
     ]
-    if let endTime { parameters["endTime"] = .number(Double(endTime.timeIntervalSince1970 * 1_000)) }
+    if let endTime { parameters["endTime"] = .number((endTime.timeIntervalSince1970 * 1_000).rounded(.towardZero)) }
     return Self(type: .custom("userFillsByTime"), parameters: parameters)
   }
 
@@ -281,8 +281,8 @@ public struct HyperliquidInfoRequest: Sendable, Codable {
       "req": .object([
         "coin": .string(coin),
         "interval": .string(interval),
-        "startTime": .number(Double(startTime.timeIntervalSince1970 * 1_000)),
-        "endTime": .number(Double(endTime.timeIntervalSince1970 * 1_000))
+        "startTime": .number((startTime.timeIntervalSince1970 * 1_000).rounded(.towardZero)),
+        "endTime": .number((endTime.timeIntervalSince1970 * 1_000).rounded(.towardZero))
       ])
     ])
   }

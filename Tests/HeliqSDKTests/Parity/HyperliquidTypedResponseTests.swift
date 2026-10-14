@@ -24,11 +24,11 @@ struct HyperliquidTypedResponseTests {
   }
 
   @Test func pageRequestEmitsInclusiveMillisecondBounds() {
-    let request = HyperliquidPageRequest(startTime: Date(timeIntervalSince1970: 1), endTime: Date(timeIntervalSince1970: 2), limit: 100)
+    let request = HyperliquidPageRequest(startTime: Date(timeIntervalSince1970: 1.1234), endTime: Date(timeIntervalSince1970: 2.4567), limit: 100)
     let parameters = request.parameters
 
-    #expect(parameters["startTime"] == .number(1000))
-    #expect(parameters["endTime"] == .number(2000))
+    #expect(parameters["startTime"] == .number(1123))
+    #expect(parameters["endTime"] == .number(2456))
     #expect(parameters["limit"] == .number(100))
   }
 

@@ -43,12 +43,8 @@ struct InfoIntegrationTests {
     let repo = makeRepo()
     let end = Date()
     let start = end.addingTimeInterval(-3600)
-    do {
-      let result = try await repo.getCandleSnapshot(coin: "BTC", interval: "1m", startTime: start, endTime: end)
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await repo.getCandleSnapshot(coin: "BTC", interval: "1m", startTime: start, endTime: end)
+    #expect(!result.isEmpty)
   }
 
   @Test func testIntegration_getAssetCtxs() async throws {
