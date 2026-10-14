@@ -17,10 +17,10 @@ public struct UserState: Sendable, Codable {
   public let marginUsed: Double
   /// The margin total associated with this value.
   public let marginTotal: Double
-  /// The margin mode associated with this value.
-  public let marginMode: MarginMode
-  /// The leverage associated with this value.
-  public let leverage: Int
+  /// Common position margin mode; nil when there are no positions or modes differ.
+  public let marginMode: MarginMode?
+  /// Common position leverage; nil when there are no positions or leverage values differ.
+  public let leverage: Int?
   
   /// Creates an instance with the supplied values.
   public init(
@@ -28,8 +28,8 @@ public struct UserState: Sendable, Codable {
     assetPositions: [AssetPosition],
     marginUsed: Double,
     marginTotal: Double,
-    marginMode: MarginMode,
-    leverage: Int
+    marginMode: MarginMode?,
+    leverage: Int?
   ) {
     self.accountAddress = accountAddress
     self.assetPositions = assetPositions
@@ -47,22 +47,28 @@ public struct AssetPosition: Sendable, Codable {
   /// The position size associated with this value.
   public let positionSize: Double
   /// The entry price associated with this value.
-  public let entryPrice: Double
+  public let entryPrice: Double?
   /// The unrealized pnl associated with this value.
   public let unrealizedPnl: Double
-  /// The realized pnl associated with this value.
-  public let realizedPnl: Double
+  /// Realized PnL, when available. Clearinghouse responses do not supply this value.
+  public let realizedPnl: Double?
   /// The margin used associated with this value.
   public let marginUsed: Double
-  
+  /// Margin mode of this position, when supplied by the exchange.
+  public let marginMode: MarginMode?
+  /// Configured leverage of this position, when supplied by the exchange.
+  public let leverage: Int?
+
   /// Creates an instance with the supplied values.
   public init(
     asset: Int,
     positionSize: Double,
-    entryPrice: Double,
+    entryPrice: Double?,
     unrealizedPnl: Double,
-    realizedPnl: Double,
-    marginUsed: Double
+    realizedPnl: Double?,
+    marginUsed: Double,
+    marginMode: MarginMode? = nil,
+    leverage: Int? = nil
   ) {
     self.asset = asset
     self.positionSize = positionSize
@@ -70,6 +76,8 @@ public struct AssetPosition: Sendable, Codable {
     self.unrealizedPnl = unrealizedPnl
     self.realizedPnl = realizedPnl
     self.marginUsed = marginUsed
+    self.marginMode = marginMode
+    self.leverage = leverage
   }
 }
 

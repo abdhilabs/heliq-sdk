@@ -15,8 +15,8 @@ struct UserStateView: View {
     List {
       Section("Account Info") {
         LabeledContent("Address", value: userState.accountAddress)
-        LabeledContent("Margin Mode", value: userState.marginMode.rawValue.capitalized)
-        LabeledContent("Leverage", value: "\(userState.leverage)x")
+        LabeledContent("Margin Mode", value: userState.marginMode?.rawValue.capitalized ?? "Per position")
+        LabeledContent("Leverage", value: userState.leverage.map { "\($0)x" } ?? "Per position")
       }
       
       Section("Margin") {
@@ -70,7 +70,7 @@ struct PositionRow: View {
           Text("Entry")
             .font(.caption)
             .foregroundStyle(.secondary)
-          Text(String(format: "%.2f", position.entryPrice))
+          Text(position.entryPrice.map { String(format: "%.2f", $0) } ?? "—")
             .font(.subheadline)
         }
         

@@ -112,62 +112,32 @@ struct InfoIntegrationTests {
   // MARK: - User data
 
   @Test func testIntegration_getUserState_zeroAddress() async throws {
-    let repo = makeRepo()
-    do {
-      _ = try await repo.getUserState(address: zeroAddress)
-      #expect(true)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let state = try await makeRepo().getUserState(address: zeroAddress)
+    #expect(state.accountAddress == zeroAddress)
   }
 
   @Test func testIntegration_getSpotUserState_zeroAddress() async throws {
-    let repo = makeRepo()
-    do {
-      _ = try await repo.getSpotUserState(address: zeroAddress)
-      #expect(true)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let state = try await makeRepo().getSpotUserState(address: zeroAddress)
+    #expect(state.accountAddress == zeroAddress)
   }
 
   @Test func testIntegration_queryFills_zeroAddress() async throws {
-    let repo = makeRepo()
-    do {
-      let result = try await repo.queryFills(address: zeroAddress)
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    _ = try await makeRepo().queryFills(address: zeroAddress)
   }
 
   @Test func testIntegration_queryUserFundings_zeroAddress() async throws {
-    let repo = makeRepo()
-    do {
-      let result = try await repo.queryUserFundings(address: zeroAddress)
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    _ = try await makeRepo().queryUserFundings(address: zeroAddress)
   }
 
   @Test func testIntegration_queryOrderByOid_nonExistent() async throws {
-    let repo = makeRepo()
-    do {
-      let result = try await repo.queryOrderByOid(orderId: "999999999")
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await makeRepo().queryOrderByOid(orderId: "999999999", address: zeroAddress)
+    #expect(result.isEmpty)
   }
 
   @Test func testIntegration_queryOrderByCloid_nonExistent() async throws {
-    let repo = makeRepo()
-    do {
-      let result = try await repo.queryOrderByCloid(cloid: "0x1234567890abcdef1234567890abcdef")
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await makeRepo().queryOrderByCloid(
+      cloid: "0x1234567890abcdef1234567890abcdef", address: zeroAddress
+    )
+    #expect(result.isEmpty)
   }
 }

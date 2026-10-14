@@ -40,7 +40,7 @@ public final class DIContainer: Sendable {
     wallet: (any WalletServiceProtocol)? = nil
   ) -> DIContainer {
     let apiClient = APIClient(environment: environment)
-    let infoRepository = InfoRepositoryImpl(apiClient: apiClient)
+    let infoRepository = InfoRepositoryImpl(apiClient: apiClient, defaultUserAddress: wallet?.address)
     let exchangeRepository = ExchangeRepositoryImpl(
       apiClient: apiClient,
       wallet: wallet

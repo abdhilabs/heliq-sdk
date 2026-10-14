@@ -107,8 +107,9 @@ public final class QueryOrderByOidUseCase: @unchecked Sendable {
   }
   
   /// Executes the use case.
-  public func execute(orderId: String) async throws -> [Order] {
-    try await infoRepository.queryOrderByOid(orderId: orderId)
+  public func execute(orderId: String, address: String? = nil) async throws -> [Order] {
+    if let address { return try await infoRepository.queryOrderByOid(orderId: orderId, address: address) }
+    return try await infoRepository.queryOrderByOid(orderId: orderId)
   }
 }
 
@@ -122,8 +123,9 @@ public final class QueryOrderByCloidUseCase: @unchecked Sendable {
   }
   
   /// Executes the use case.
-  public func execute(cloid: String) async throws -> [Order] {
-    try await infoRepository.queryOrderByCloid(cloid: cloid)
+  public func execute(cloid: String, address: String? = nil) async throws -> [Order] {
+    if let address { return try await infoRepository.queryOrderByCloid(cloid: cloid, address: address) }
+    return try await infoRepository.queryOrderByCloid(cloid: cloid)
   }
 }
 

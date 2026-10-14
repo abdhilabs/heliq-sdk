@@ -233,6 +233,27 @@ xcodebuild test -project HeliqSDK.xcodeproj -scheme HeliqSDKDemo -destination 'p
 
 See [TEST_PLAN.md](./TEST_PLAN.md) and [PLAN.md](./PLAN.md) for details.
 
+## Typed user data
+
+The `sdk.info` user-state, spot-balance, fill, funding, and order-query methods use
+Hyperliquid's official Info endpoints. Order queries accept an explicit `address`:
+
+```swift
+let orders = try await client.info.queryOrderByOid(orderId: "123", address: userAddress)
+```
+
+Calls without an address use the client's configured wallet and throw
+`ValidationError.missingRequiredField(field: "address")` when no wallet exists.
+Unknown orders return an empty array.
+
+`UserState.marginMode` and `leverage` are optional summaries of matching position
+settings; they are nil for empty or mixed portfolios. Each `AssetPosition` exposes
+its own settings. `entryPrice` is optional, and `realizedPnl` is nil for
+clearinghouse responses because that endpoint does not supply realized PnL.
+Consumers upgrading from the previous model must unwrap these optional values.
+Custom `InfoRepository` implementations must implement the explicit-address order
+query overloads.
+
 ## Requirements
 
 - Swift 6.1

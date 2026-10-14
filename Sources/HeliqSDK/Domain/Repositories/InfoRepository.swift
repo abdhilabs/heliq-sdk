@@ -25,8 +25,12 @@ public protocol InfoRepository: Sendable {
   func getL2Book(coin: String) async throws -> L2Book
   /// Performs the query order by oid repository operation.
   func queryOrderByOid(orderId: String) async throws -> [Order]
+  /// Looks up an order for the specified user; an unknown order returns an empty array.
+  func queryOrderByOid(orderId: String, address: String) async throws -> [Order]
   /// Performs the query order by cloid repository operation.
   func queryOrderByCloid(cloid: String) async throws -> [Order]
+  /// Looks up a client order ID for the specified user.
+  func queryOrderByCloid(cloid: String, address: String) async throws -> [Order]
   /// Performs the query fills repository operation.
   func queryFills(address: String) async throws -> [Fill]
   /// Performs the query user fundings repository operation.

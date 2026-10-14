@@ -95,6 +95,14 @@ struct MockInfoRepository: InfoRepository {
     return result
   }
   
+  func queryOrderByOid(orderId: String, address: String) async throws -> [Order] {
+    try await queryOrderByOid(orderId: orderId)
+  }
+
+  func queryOrderByCloid(cloid: String, address: String) async throws -> [Order] {
+    try await queryOrderByCloid(cloid: cloid)
+  }
+
   func queryFills(address: String) async throws -> [Fill] {
     if let error = queryFillsThrowable { throw error }
     guard let result = queryFillsResult else { throw APIError.invalidResponse }
