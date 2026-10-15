@@ -296,3 +296,41 @@ explicit `address` or use the configured wallet, just like order queries.
 ## License
 
 MIT
+
+### Available balances and complete typed Perps APIs
+
+```swift
+let balances = try await sdk.info.getBalances(address: address)
+let capacity = try await sdk.info.getActiveAssetData(address: address, coin: "BTC")
+let metadata = try await sdk.info.perps(.meta(dex: "xyz"))
+
+if balances.abstraction.supportsClassTransfer {
+  _ = try await sdk.exchange.usdClassTransfer(amount: Decimal(1), toPerp: true)
+}
+
+let result = try await sdk.exchange.executePerps(.orders([
+  .init(market: .coin("BTC"), side: .buy, size: Decimal(string: "0.001")!,
+    price: Decimal(50000), kind: .limit(.alo))
+]))
+```
+
+`getBalances(address:)` reads global Spot balances and validator Perps. Use
+`getBalances(address:dexes:)` for explicit HIP-3 DEXs. Shared collateral is counted
+only in Spot; missing or inapplicable availability values stay optional. Unheld,
+available-after-maintenance, withdrawable, and coin-specific trading capacity are
+separate values. The SDK does not derive withdrawal capacity from account value.
+
+New typed APIs use Decimal, metadata-based market IDs/precision, and exact integer
+transport. They include TP/SL grouping, batch modification/cancellation, isolated
+margin, market closes, TWAP, trailing stops, agent/subaccount operations, immutable
+multisig preparation/signing/recovery, and current HIP-3 deployment actions.
+Existing APIs remain available; new custom-repository requirements default to explicit
+unsupported errors. Wallet adapters can implement contextual `signL1Payload` for
+vaults, expiry, and multisig arrays.
+
+The demo's **Typed Perps trading** screen shows balances and buy/sell capacity,
+selects markets from metadata, and provides trading/position/class-transfer controls.
+Administrative/deployment APIs are demonstrated through SDK tests rather than UI forms.
+
+See [typed Perps coverage](PERPS_API_COVERAGE.md), [verification results](PERPS_TEST_REPORT.md),
+and [Perps and balances documentation](Sources/HeliqSDK/HeliqSDK.docc/PerpsAndBalances.md).

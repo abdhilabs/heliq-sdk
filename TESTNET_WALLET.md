@@ -41,3 +41,11 @@ Additional controlled test keys (also ignored, mode 0600):
 - `.local/hyperliquid-testnet-multisig.key`: disposable multisig account, restored to normal signing.
 
 Both secondary accounts have zero balance and no orders/positions after cleanup.
+
+Typed Perps testing additionally uses `.local/hyperliquid-testnet-standard.key`
+(address `0x309ef1a1b1c9c0b2321213c1ffd2f74f8bdb8c93`), ignored with permissions
+0600. It is initialized in standard (`disabled`) mode and has zero funds, orders,
+and positions after cleanup. Its temporary simulator import was removed and the
+primary unified wallet restored. Current typed API results and test costs are in
+[PERPS_TEST_REPORT.md](PERPS_TEST_REPORT.md); the older trading report records the
+previous test run.
