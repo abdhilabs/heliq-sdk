@@ -1,5 +1,6 @@
 # Project documentation
 
+- [Sample app guide](DEMO_GUIDE.md)
 - [Implementation plan](PLAN.md)
 - [Test plan](TEST_PLAN.md)
 - [Testnet wallet setup](TESTNET_WALLET.md)

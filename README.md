@@ -336,3 +336,6 @@ Administrative/deployment APIs are demonstrated through SDK tests rather than UI
 
 See [typed Perps coverage](Docs/PERPS_API_COVERAGE.md), [verification results](Docs/PERPS_TEST_REPORT.md),
 and [Perps and balances documentation](Sources/HeliqSDK/HeliqSDK.docc/PerpsAndBalances.md).
+
+The sample app provides Overview, Perpetuals, API Explorer, and Settings tabs.
+See the [sample app guide](Docs/DEMO_GUIDE.md) for trading workflows and UI checks.
