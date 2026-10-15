@@ -27,7 +27,8 @@ let package = Package(
     .testTarget(
       name: "HeliqSDKTests",
       dependencies: ["HeliqSDK"],
-      exclude: ["Info.plist"]
+      exclude: ["Info.plist"],
+      resources: [.process("Fixtures/Perps")]
     ),
     .testTarget(
       name: "HeliqSDKIntegrationTests",

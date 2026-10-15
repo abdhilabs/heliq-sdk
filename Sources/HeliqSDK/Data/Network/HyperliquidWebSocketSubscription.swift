@@ -87,6 +87,7 @@ public extension JSONValue {
     switch self {
     case .string(let v): return v
     case .number(let v): return v
+    case .integer(let v): return v
     case .bool(let v): return v
     case .null: return NSNull()
     case .array(let v): return v.map(\.foundationValue)

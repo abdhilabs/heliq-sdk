@@ -63,8 +63,14 @@ public final class Signer: @unchecked Sendable {
     vaultAddress: String? = nil,
     expiresAfter: Int64? = nil
   ) throws -> Data {
+    try actionHash(payload: .object(action), nonce: nonce, vaultAddress: vaultAddress, expiresAfter: expiresAfter)
+  }
+
+  /// Hashes a canonical L1 payload with its nonce, optional vault, and expiration context.
+  public static func actionHash(payload: CanonicalMessagePack.Value, nonce: Int64,
+    vaultAddress: String? = nil, expiresAfter: Int64? = nil) throws -> Data {
     guard nonce >= 0 else { throw SigningError.signingFailed(reason: "Nonce must be non-negative") }
-    var hashInput = try CanonicalMessagePack.encode(action)
+    var hashInput = try CanonicalMessagePack.encode(payload)
     append(UInt64(nonce), to: &hashInput)
     if let vaultAddress {
       guard let bytes = Data(hexString: vaultAddress), bytes.count == 20 else {
@@ -132,9 +138,16 @@ public final class Signer: @unchecked Sendable {
     expiresAfter: Int64? = nil,
     isMainnet: Bool
   ) async throws -> SignatureTypes {
+    try await signL1Payload(.object(action), nonce: nonce, vaultAddress: vaultAddress,
+      expiresAfter: expiresAfter, isMainnet: isMainnet)
+  }
+
+  /// Signs a canonical L1 payload with the selected network, vault, and expiration context.
+  public func signL1Payload(_ payload: CanonicalMessagePack.Value, nonce: Int64,
+    vaultAddress: String? = nil, expiresAfter: Int64? = nil, isMainnet: Bool) async throws -> SignatureTypes {
     let startedAt = Date()
     do {
-      let hash = try Self.actionHash(action: action, nonce: nonce, vaultAddress: vaultAddress, expiresAfter: expiresAfter)
+      let hash = try Self.actionHash(payload: payload, nonce: nonce, vaultAddress: vaultAddress, expiresAfter: expiresAfter)
     let connectionID = hash.hexString
     let typedData = try JSONDecoder().decode(TypedData.self, from: Data("""
     {"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Agent":[{"name":"source","type":"string"},{"name":"connectionId","type":"bytes32"}]},"primaryType":"Agent","domain":{"name":"Exchange","version":"1","chainId":1337,"verifyingContract":"0x0000000000000000000000000000000000000000"},"message":{"source":"\(isMainnet ? "a" : "b")","connectionId":"0x\(connectionID)"}}

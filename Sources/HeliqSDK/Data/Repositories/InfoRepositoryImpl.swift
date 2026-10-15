@@ -77,7 +77,7 @@ public struct InfoAPIRequest: APIRouterProtocol, Sendable {
 
 /// Provides info repository impl functionality.
 public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
-  private let apiClient: APIClient
+  let apiClient: APIClient
   private let defaultUserAddress: String?
   private let assetCache = AssetMetaCache()
   

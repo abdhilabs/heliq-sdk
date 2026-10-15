@@ -20,6 +20,8 @@ public enum CanonicalMessagePack {
     case null
     /// A non-negative integral numeric value.
     case number(Double)
+    /// Signed protocol integers, including isolated-margin withdrawals.
+    case signed(Int64)
     /// An ordered collection of values.
     case array([Value])
     /// An order-preserving object value.
@@ -44,6 +46,13 @@ public enum CanonicalMessagePack {
     return output
   }
 
+  /// Encodes the supplied value in the protocol representation expected by the receiving transport.
+  public static func encode(_ value: Value) throws -> Data {
+    var output = Data()
+    try encode(value, into: &output)
+    return output
+  }
+
   static func json(_ object: Object) -> [String: JSONValue] {
     Dictionary(uniqueKeysWithValues: object.fields.map { ($0.0, json($0.1)) })
   }
@@ -54,6 +63,7 @@ public enum CanonicalMessagePack {
     case .bool(let v): return .bool(v)
     case .null: return .null
     case .number(let v): return .number(v)
+    case .signed(let v): return .protocolInteger(v)
     case .array(let v): return .array(v.map(json))
     case .object(let v): return .object(json(v))
     }
@@ -77,6 +87,14 @@ public enum CanonicalMessagePack {
       output.append(0xc0)
     case .number(let value):
       try encodeInteger(value, into: &output)
+    case .signed(let value):
+      if value >= 9_007_199_254_740_992 { output.append(0xcf); append(UInt64(value), into: &output) }
+      else if value >= 0 { try encodeInteger(Double(value), into: &output) }
+      else if value >= -32 { output.append(UInt8(truncatingIfNeeded: value)) }
+      else if value >= -128 { output.append(0xd0); output.append(UInt8(truncatingIfNeeded: value)) }
+      else if value >= -32768 { output.append(0xd1); append(UInt16(truncatingIfNeeded: value), into: &output) }
+      else if value >= -2147483648 { output.append(0xd2); append(UInt32(truncatingIfNeeded: value), into: &output) }
+      else { output.append(0xd3); append(UInt64(bitPattern: value), into: &output) }
     case .array(let values):
       try encodeCount(values.count, fix: 0x90, wide16: 0xdc, wide32: 0xdd, into: &output)
       for value in values {

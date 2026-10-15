@@ -9,6 +9,15 @@ import Foundation
 
 /// Defines the interface for exchange repository operations.
 public protocol ExchangeRepository: Sendable {
+  /// Executes a typed official Perps action using the SDK signer.
+  func executePerps(_ action: PerpsAction, context: PerpsExecutionContext) async throws -> PerpsActionResult
+  /// Freezes the resolved action, network, nonce, and context for all multisig signers.
+  func preparePerpsMultisig(action: PerpsAction, user: String, leader: String, nonce: Int64,
+    context: PerpsExecutionContext) async throws -> PerpsMultisigPayload
+  /// Signs the prepared payload with the configured wallet without resolving the action again.
+  func signPerpsMultisig(_ payload: PerpsMultisigPayload) async throws -> PerpsMultisigSignature
+  /// Submits a multisig action with signatures bound to one nonce and leader.
+  func executeMultisig(_ request: PerpsMultisigRequest) async throws -> PerpsActionResult
   /// Performs the place order repository operation.
   func placeOrder(_ order: OrderRequest) async throws -> OrderResponse
   /// Performs the bulk orders repository operation.
@@ -269,5 +278,43 @@ public struct UsdSendResponse: Sendable, Codable {
   public init(status: String, hash: String? = nil) {
     self.status = status
     self.hash = hash
+  }
+}
+
+public extension ExchangeRepository {
+  /// Reports unsupported functionality unless a custom repository implements this typed operation.
+  func executePerps(_ action: PerpsAction, context: PerpsExecutionContext) async throws -> PerpsActionResult {
+    throw ValidationError.malformedData(reason: "Repository does not implement typed Perps actions")
+  }
+  /// Validates, signs, and submits one typed exchange action without automatic retries.
+  func executePerps(_ action: PerpsAction) async throws -> PerpsActionResult {
+    try await executePerps(action, context: .init())
+  }
+  /// Reports unsupported functionality unless a custom repository implements this typed operation.
+  func executeMultisig(_ request: PerpsMultisigRequest) async throws -> PerpsActionResult {
+    throw ValidationError.malformedData(reason: "Repository does not implement multisig submission")
+  }
+  /// Transfers exact USDC between Spot and Perps for standard accounts; shared or unresolved modes
+  /// throw.
+  func usdClassTransfer(amount: Decimal, toPerp: Bool) async throws -> PerpsActionResult {
+    try await executePerps(.usdClassTransfer(amount: amount, toPerp: toPerp))
+  }
+  /// Transfers an exact token amount between explicit supported ledgers, including HIP-3 DEXs.
+  func sendAsset(destination: String, source: PerpsLedger, destinationLedger: PerpsLedger,
+    token: String, amount: Decimal, fromSubAccount: String = "") async throws -> PerpsActionResult {
+    try await executePerps(.sendAsset(destination: destination, source: source,
+      destinationLedger: destinationLedger, token: token, amount: amount, fromSubAccount: fromSubAccount))
+  }
+}
+
+public extension ExchangeRepository {
+  /// Reports unsupported functionality unless a custom repository implements this typed operation.
+  func preparePerpsMultisig(action: PerpsAction, user: String, leader: String, nonce: Int64,
+    context: PerpsExecutionContext) async throws -> PerpsMultisigPayload {
+    throw ValidationError.malformedData(reason: "Repository does not implement multisig preparation")
+  }
+  /// Reports unsupported functionality unless a custom repository implements this typed operation.
+  func signPerpsMultisig(_ payload: PerpsMultisigPayload) async throws -> PerpsMultisigSignature {
+    throw ValidationError.malformedData(reason: "Repository does not implement multisig signing")
   }
 }

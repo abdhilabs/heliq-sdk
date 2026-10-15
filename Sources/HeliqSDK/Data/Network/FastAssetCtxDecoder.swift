@@ -15,6 +15,21 @@ public struct FastAssetCtx: Sendable, Codable, Equatable {
   /// The mid px.
   public let midPx: String?
 
+  enum CodingKeys: String, CodingKey { case markPx, midPx }
+  /// Decodes `CodingKeys` from its protocol response representation; invalid required values throw.
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    /// Decodes a price supplied as either a protocol string or JSON number.
+    func price(_ key: CodingKeys) throws -> String? {
+      guard c.contains(key), try !c.decodeNil(forKey: key) else { return nil }
+      if let text = try? c.decode(String.self, forKey: key) { return text }
+      let value = try c.decode(Decimal.self, forKey: key)
+      guard !value.isNaN else { throw ValidationError.malformedData(reason: "Invalid context price") }
+      return NSDecimalNumber(decimal: value).stringValue
+    }
+    markPx = try price(.markPx); midPx = try price(.midPx)
+  }
+
   /// Creates a fast asset ctx.
   public init(markPx: String? = nil, midPx: String? = nil) {
     self.markPx = markPx
@@ -34,7 +49,7 @@ public enum FastAssetCtxDecoder {
     do {
       return try JSONDecoder().decode([String: FastAssetCtx].self, from: decompressed)
     } catch {
-      throw ValidationError.malformedData(reason: "fastAssetCtxs payload is not valid JSON")
+      throw ValidationError.malformedData(reason: "Invalid fastAssetCtxs payload: \(error)")
     }
   }
 
@@ -55,7 +70,8 @@ public enum FastAssetCtxDecoder {
           )
         }
       }
-      if decoded > 0 {
+      // A full destination buffer can contain a truncated stream, so retry at a larger size.
+      if decoded > 0, decoded < capacity {
         output.removeSubrange(decoded..<output.count)
         return output
       }

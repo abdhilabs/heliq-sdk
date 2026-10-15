@@ -61,7 +61,7 @@ public final class WebSocketMessageParser {
     }
     
     if let channel = json["channel"] as? String, let payload = json["data"] {
-      let payloadData = try JSONSerialization.data(withJSONObject: payload)
+      let payloadData = try JSONSerialization.data(withJSONObject: payload, options: [.fragmentsAllowed])
       return .channelData(channel: channel, data: payloadData)
     }
 

@@ -9,6 +9,14 @@ import Foundation
 
 /// Defines the interface for info repository operations.
 public protocol InfoRepository: Sendable {
+  /// Queries an official Perps endpoint using its typed request and response.
+  func perps<Response: Sendable>(_ query: PerpsQuery<Response>) async throws -> Response
+  /// Returns mode-aware Spot balances and Perps collateral summaries.
+  func getBalances(address: String) async throws -> AccountBalances
+  /// Reads balances for explicit DEXs; the default overload covers validator Perps only.
+  func getBalances(address: String, dexes: [String]) async throws -> AccountBalances
+  /// Returns coin-specific trading capacity from the exchange.
+  func getActiveAssetData(address: String, coin: String) async throws -> PerpsActiveAssetData
   /// Performs the get user state repository operation.
   func getUserState(address: String) async throws -> UserState
   /// Performs the get spot user state repository operation.
@@ -190,5 +198,27 @@ public struct BuilderFee: Sendable, Codable {
   public init(builderAddress: String, feeBps: Double) {
     self.builderAddress = builderAddress
     self.feeBps = feeBps
+  }
+}
+
+public extension InfoRepository {
+  /// Reports unsupported functionality unless a custom repository implements this typed operation.
+  func perps<Response: Sendable>(_ query: PerpsQuery<Response>) async throws -> Response {
+    throw ValidationError.malformedData(reason: "Repository does not implement typed Perps queries")
+  }
+  /// Reports unsupported functionality unless a custom repository implements this typed operation.
+  func getBalances(address: String) async throws -> AccountBalances {
+    throw ValidationError.malformedData(reason: "Repository does not implement balances")
+  }
+  /// Reads leverage and trading capacity for the address and exact metadata coin name.
+  func getActiveAssetData(address: String, coin: String) async throws -> PerpsActiveAssetData {
+    try await perps(.activeAsset(address: address, coin: coin))
+  }
+}
+
+public extension InfoRepository {
+  /// Reports unsupported functionality unless a custom repository implements this typed operation.
+  func getBalances(address: String, dexes: [String]) async throws -> AccountBalances {
+    throw ValidationError.malformedData(reason: "Repository does not implement DEX-scoped balances")
   }
 }

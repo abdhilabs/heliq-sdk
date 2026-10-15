@@ -18,6 +18,8 @@ public protocol WebSocketMessageRouterDelegate: AnyObject, Sendable {
 /// Provides web socket message router functionality.
 public final class WebSocketMessageRouter: @unchecked Sendable {
   private let parser: WebSocketMessageParser
+  private let perpsLock = NSLock()
+  private var perpsHandlers: [HyperliquidWebSocketSubscription: (String, @Sendable (Data) -> Void)] = [:]
   private var handlers: [String: @Sendable (Data) -> Void] = [:]
   private let queue = DispatchQueue(label: "com.heliqsdk.router")
   
@@ -69,7 +71,10 @@ public final class WebSocketMessageRouter: @unchecked Sendable {
         }
         
       case .channelData(let channel, let payload):
-        queue.async { self.handlers[channel]?(payload) }
+        queue.async {
+          self.handlers[channel]?(payload)
+          for handler in self.perpsHandlers(for: channel) { handler(data) }
+        }
 
       case .data:
         break
@@ -79,10 +84,38 @@ public final class WebSocketMessageRouter: @unchecked Sendable {
     }
   }
   
+  /// Registers a full-envelope handler and rejects subscriptions that cannot be routed
+  /// unambiguously.
+  func registerPerpsEnvelopeHandler(subscription: HyperliquidWebSocketSubscription, channel: String,
+    handler: @escaping @Sendable (Data) -> Void) throws {
+    perpsLock.lock(); defer { perpsLock.unlock() }
+    for (other, entry) in perpsHandlers where entry.0 == channel && other != subscription {
+      let unlabelled = ["allMids", "notification", "user"].contains(channel)
+      let ambiguousBook = channel == "l2Book" && other.parameters["coin"] == subscription.parameters["coin"]
+      guard !unlabelled, !ambiguousBook else {
+        throw ValidationError.malformedData(reason: "This feed does not identify multiple subscription sources; use separate routers/connections")
+      }
+    }
+    perpsHandlers[subscription] = (channel, handler)
+  }
+
+  /// Removes the local full-envelope handler for an exact subscription.
+  func unregisterPerpsEnvelopeHandler(_ subscription: HyperliquidWebSocketSubscription) {
+    perpsLock.lock(); defer { perpsLock.unlock() }
+    perpsHandlers.removeValue(forKey: subscription)
+  }
+
+  /// Snapshots the matching envelope handlers while holding the registry lock.
+  private func perpsHandlers(for channel: String) -> [@Sendable (Data) -> Void] {
+    perpsLock.lock(); defer { perpsLock.unlock() }
+    return perpsHandlers.values.filter { $0.0 == channel }.map(\.1)
+  }
+
   /// Performs the clear all handlers operation.
   public func clearAllHandlers() {
     queue.async {
       self.handlers.removeAll()
+      self.perpsLock.lock(); self.perpsHandlers.removeAll(); self.perpsLock.unlock()
     }
   }
 }

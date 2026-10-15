@@ -13,6 +13,8 @@ public enum JSONValue: Sendable, Codable, Equatable, Hashable {
   case string(String)
   /// The `number` case.
   case number(Double)
+  /// Integral protocol values outside Double's exact range.
+  case integer(Int64)
   /// The `bool` case.
   case bool(Bool)
   /// The `object` case.
@@ -27,6 +29,7 @@ public enum JSONValue: Sendable, Codable, Equatable, Hashable {
     let c = try decoder.singleValueContainer()
     if c.decodeNil() { self = .null }
     else if let v = try? c.decode(Bool.self) { self = .bool(v) }
+    else if let v = try? c.decode(Int64.self), v <= -9_007_199_254_740_992 || v >= 9_007_199_254_740_992 { self = .integer(v) }
     else if let v = try? c.decode(Double.self) { self = .number(v) }
     else if let v = try? c.decode(String.self) { self = .string(v) }
     else if let v = try? c.decode([String: JSONValue].self) { self = .object(v) }
@@ -40,6 +43,7 @@ public enum JSONValue: Sendable, Codable, Equatable, Hashable {
     switch self {
     case .string(let v): try c.encode(v)
     case .number(let v): try c.encode(v)
+    case .integer(let v): try c.encode(v)
     case .bool(let v): try c.encode(v)
     case .object(let v): try c.encode(v)
     case .array(let v): try c.encode(v)
@@ -394,9 +398,9 @@ public struct HyperliquidExchangeEnvelope: Sendable, Codable {
   public init(action: HyperliquidExchangeAction, nonce: Int64, signature: SignatureTypes, vaultAddress: String? = nil, expiresAfter: Int64? = nil) { self.action = action; self.nonce = nonce; self.signature = signature; self.vaultAddress = vaultAddress; self.expiresAfter = expiresAfter }
   /// Returns the request body for this value.
   public func body() -> [String: JSONValue] {
-    var result: [String: JSONValue] = ["action": .object(action.body()), "nonce": .number(Double(nonce)), "signature": .object(["r": .string(signature.r), "s": .string(signature.s), "v": .number(Double(signature.v))])]
+    var result: [String: JSONValue] = ["action": .object(action.body()), "nonce": .protocolInteger(nonce), "signature": .object(["r": .string(signature.r), "s": .string(signature.s), "v": .number(Double(signature.v))])]
     if let vaultAddress { result["vaultAddress"] = .string(vaultAddress) }
-    if let expiresAfter { result["expiresAfter"] = .number(Double(expiresAfter)) }
+    if let expiresAfter { result["expiresAfter"] = .protocolInteger(expiresAfter) }
     return result
   }
 }
@@ -516,5 +520,12 @@ public enum HyperliquidWebSocketPostRequest: Sendable {
       throw ValidationError.malformedData(reason: "Unable to encode WebSocket post payload")
     }
     return result
+  }
+}
+
+extension JSONValue {
+  /// Preserves integers outside Double’s exact range while retaining legacy small-number encoding.
+  static func protocolInteger(_ value: Int64) -> Self {
+    value <= -9_007_199_254_740_992 || value >= 9_007_199_254_740_992 ? .integer(value) : .number(Double(value))
   }
 }

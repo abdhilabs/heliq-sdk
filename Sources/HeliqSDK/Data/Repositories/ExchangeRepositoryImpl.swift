@@ -123,10 +123,10 @@ public struct ExchangeAPIRequest: APIRouterProtocol, Sendable {
 public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendable {
   private typealias Object = CanonicalMessagePack.Object
   private typealias Value = CanonicalMessagePack.Value
-  private let apiClient: APIClient
+  let apiClient: APIClient
   private let transactionBuilder: TransactionBuilder
   private let wallet: (any WalletServiceProtocol)?
-  private static let nonces = ExchangeNonce()
+  static let nonces = ExchangeNonce()
 
   public init(
     apiClient: APIClient, transactionBuilder: TransactionBuilder = TransactionBuilder(),
@@ -137,7 +137,8 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     self.wallet = wallet
   }
 
-  private func requireWallet() throws -> any WalletServiceProtocol {
+  /// Returns the configured signing wallet or throws when no wallet is connected.
+  func requireWallet() throws -> any WalletServiceProtocol {
     guard let wallet else { throw ValidationError.missingRequiredField(field: "wallet") }
     try validateHex(wallet.address, bytes: 20, field: "wallet.address")
     return wallet
@@ -152,6 +153,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
       action: CanonicalMessagePack.json(action), nonce: nonce, signature: signature)
   }
 
+  /// Signs and submits a user action with the supplied EIP-712 fields.
   private func submitUser(
     type: String, primary: String, parameters: [String: JSONValue], fields: [(String, String)],
     timeKey: String = "time"
@@ -160,7 +162,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     let nonce = await Self.nonces.next()
     var action = parameters
     action["type"] = .string(type)
-    action[timeKey] = .number(Double(nonce))
+    action[timeKey] = .protocolInteger(nonce)
     action["signatureChainId"] = .string("0x66eee")
     action["hyperliquidChain"] = .string(apiClient.environment == .mainnet ? "Mainnet" : "Testnet")
     let schema = [("hyperliquidChain", "string")] + fields + [(timeKey, "uint64")]
@@ -171,7 +173,8 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return try await post(action: action, nonce: nonce, signature: signature)
   }
 
-  private func post(action: [String: JSONValue], nonce: Int64, signature: SignatureTypes)
+  /// Posts a signed action with its nonce and execution context without retrying the mutation.
+  func post(action: [String: JSONValue], nonce: Int64, signature: SignatureTypes, context: PerpsExecutionContext = .init())
     async throws -> JSONValue
   {
     guard [27, 28].contains(signature.v) else {
@@ -183,14 +186,15 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
         throw SigningError.signingFailed(reason: "Invalid signature component")
       }
     }
-    let request = try HyperliquidRawRequest(
-      path: "/exchange",
-      body: [
-        "action": .object(action), "nonce": .number(Double(nonce)),
+    var body: [String: JSONValue] = [
+        "action": .object(action), "nonce": .protocolInteger(nonce),
         "signature": .object([
           "r": .string(signature.r), "s": .string(signature.s), "v": .number(Double(signature.v)),
         ]),
-      ])
+      ]
+    if let address = context.vaultAddress { body["vaultAddress"] = .string(address) }
+    if let expires = context.expiresAfter { body["expiresAfter"] = .number(Double(try perpsMilliseconds(expires))) }
+    let request = try HyperliquidRawRequest(path: "/exchange", body: body)
     let result: JSONValue = try await apiClient.request(request)
     guard result["status"].string == "ok" else {
       throw APIError.hyperliquidError(
@@ -781,7 +785,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   }
 }
 
-private actor ExchangeNonce {
+actor ExchangeNonce {
   private var last: Int64 = 0
   func next() -> Int64 {
     last = max(last + 1, Int64(Date().timeIntervalSince1970 * 1_000))

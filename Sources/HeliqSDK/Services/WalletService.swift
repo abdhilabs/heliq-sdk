@@ -23,6 +23,12 @@ public final class WalletService: WalletServiceProtocol, @unchecked Sendable {
   public func sign(message: String) async throws -> SignatureTypes {
     try await keyManager.sign(message: message)
   }
+  /// Signs a canonical L1 payload with the selected network, vault, and expiration context.
+  public func signL1Payload(_ payload: CanonicalMessagePack.Value, nonce: Int64,
+    vaultAddress: String?, expiresAfter: Int64?, isMainnet: Bool) async throws -> SignatureTypes {
+    try await keyManager.signL1Payload(payload, nonce: nonce, vaultAddress: vaultAddress,
+      expiresAfter: expiresAfter, isMainnet: isMainnet)
+  }
   public func signL1(action: CanonicalMessagePack.Object, nonce: Int64, isMainnet: Bool) async throws -> SignatureTypes {
     try await keyManager.signL1(action: action, nonce: nonce, isMainnet: isMainnet)
   }
@@ -82,6 +88,13 @@ public final class KeyManager: @unchecked Sendable {
       throw SigningError.keyNotFound
     }
     return try await signer.sign(message: message)
+  }
+  /// Signs a canonical L1 payload with the selected network, vault, and expiration context.
+  public func signL1Payload(_ payload: CanonicalMessagePack.Value, nonce: Int64,
+    vaultAddress: String?, expiresAfter: Int64?, isMainnet: Bool) async throws -> SignatureTypes {
+    guard let signer else { throw SigningError.keyNotFound }
+    return try await signer.signL1Payload(payload, nonce: nonce, vaultAddress: vaultAddress,
+      expiresAfter: expiresAfter, isMainnet: isMainnet)
   }
   public func signL1(action: CanonicalMessagePack.Object, nonce: Int64, isMainnet: Bool) async throws -> SignatureTypes {
     guard let signer else { throw SigningError.keyNotFound }
