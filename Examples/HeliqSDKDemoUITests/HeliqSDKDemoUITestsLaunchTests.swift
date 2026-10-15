@@ -18,7 +18,7 @@ final class HeliqSDKDemoUITestsLaunchTests: XCTestCase {
   func testLaunch() throws {
     let app = XCUIApplication()
     app.launch()
-    XCTAssertTrue(app.navigationBars["HeliqSDK Demo"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["Overview"].waitForExistence(timeout: 5))
 
     let attachment = XCTAttachment(screenshot: app.screenshot())
     attachment.name = "Launch Screen"

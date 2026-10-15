@@ -13,6 +13,7 @@ final class HeliqSDKDemoUITests: XCTestCase {
 
   override func setUpWithError() throws {
     continueAfterFailure = false
+    XCUIDevice.shared.orientation = .portrait
     app = XCUIApplication()
     app.launchArguments += ["-ui-testing", "-fresh-testnet-wallet"]
     app.launch()
@@ -27,8 +28,8 @@ final class HeliqSDKDemoUITests: XCTestCase {
     app.launchArguments = ["-ui-testing"]
     app.launch()
     func initializeTestnet() {
-      app.staticTexts["Settings"].tap()
-      app.staticTexts["Testnet"].tap()
+      openSettings()
+      app.buttons["environment_testnet"].tap()
       reachTradingControl(app.buttons["initialize_sdk"])
       app.buttons["initialize_sdk"].tap()
       let initialized = app.alerts["SDK Initialized"].waitForExistence(timeout: 10)
@@ -38,8 +39,8 @@ final class HeliqSDKDemoUITests: XCTestCase {
         XCTFail(error.label)
       }
       app.alerts.buttons["OK"].tap()
-      app.navigationBars.buttons.element(boundBy: 0).tap()
-      app.staticTexts["Wallet"].tap()
+      goBack()
+      openExample("Wallet")
     }
     initializeTestnet()
     let address = app.staticTexts["connected_wallet_address"]
@@ -49,11 +50,11 @@ final class HeliqSDKDemoUITests: XCTestCase {
     if let expected = ProcessInfo.processInfo.environment["HELIQ_EXPECTED_TESTNET_ADDRESS"] {
       XCTAssertEqual(first.lowercased(), expected.lowercased())
     }
-    app.navigationBars.buttons.element(boundBy: 0).tap()
-    app.staticTexts["Settings"].tap()
+    goBack()
+    openSettings()
     reachTradingControl(app.buttons["Disconnect SDK"])
     app.buttons["Disconnect SDK"].tap()
-    app.navigationBars.buttons.element(boundBy: 0).tap()
+    goBack()
     initializeTestnet()
     XCTAssertEqual(app.staticTexts["connected_wallet_address"].label, first)
     app.terminate()
@@ -69,17 +70,17 @@ final class HeliqSDKDemoUITests: XCTestCase {
     app.terminate()
     app.launchArguments = ["-ui-testing"]
     app.launch()
-    app.staticTexts["Settings"].tap()
-    app.staticTexts["Testnet"].tap()
+    openSettings()
+    app.buttons["environment_testnet"].tap()
     reachTradingControl(app.buttons["initialize_sdk"])
     app.buttons["initialize_sdk"].tap()
     XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
     app.alerts.buttons["OK"].tap()
-    app.navigationBars.buttons.element(boundBy: 0).tap()
-    app.staticTexts["Wallet"].tap()
+    goBack()
+    openExample("Wallet")
     XCTAssertEqual(app.staticTexts["connected_wallet_address"].label, "0x444483eba5faa8a1499a4d2261c5e4e927b558cf")
-    app.navigationBars.buttons.element(boundBy: 0).tap()
-    app.staticTexts["Trading"].tap()
+    goBack()
+    openExample("Trading")
     func fill(_ identifier: String, _ value: String) {
       let input = app.textFields[identifier]
       reachTradingControl(input)
@@ -139,9 +140,11 @@ final class HeliqSDKDemoUITests: XCTestCase {
     XCTAssertTrue(app.staticTexts["balance_mode"].waitForExistence(timeout: 15))
     XCTAssertEqual(app.staticTexts["balance_mode"].label, "Shared Spot / Perps collateral")
     XCTAssertFalse(app.staticTexts["balance_error"].exists)
-    app.navigationBars.buttons.element(boundBy: 0).tap()
+    goBack()
+    app.buttons["open_perps_transfer"].tap()
     fillPerps("perps_transfer_amount", "1")
     XCTAssertFalse(app.buttons["perps_class_transfer"].isEnabled)
+    app.buttons["Done"].tap()
     for _ in 0..<10 { app.swipeDown() }
     fillPerps("perps_size", "0.0003")
     fillPerps("perps_price", "50000")
@@ -149,10 +152,11 @@ final class HeliqSDKDemoUITests: XCTestCase {
     app.buttons["submit_perps_order"].tap()
     _ = perpsResult("Order placed: resting")
     for _ in 0..<10 { app.swipeDown() }
+    app.buttons["Open Orders"].tap()
     reachTradingControl(app.buttons["perps_cancel_open"])
     XCTAssertTrue(app.buttons["perps_cancel_open"].waitForExistence(timeout: 5))
     app.buttons["perps_cancel_open"].tap()
-    _ = perpsResult("Cancelled: 1 orders")
+    _ = perpsResult("Cancellation accepted")
   }
 
   func testTypedStandardClassTransferRoundTrip() throws {
@@ -163,23 +167,27 @@ final class HeliqSDKDemoUITests: XCTestCase {
     app.buttons["Available balances"].tap()
     XCTAssertTrue(app.staticTexts["balance_mode"].waitForExistence(timeout: 15))
     XCTAssertEqual(app.staticTexts["balance_mode"].label, "Separate Spot and Perps balances")
-    app.navigationBars.buttons.element(boundBy: 0).tap()
+    goBack()
+    app.buttons["open_perps_transfer"].tap()
     fillPerps("perps_transfer_amount", "0.5")
     XCTAssertTrue(app.buttons["perps_class_transfer"].isEnabled)
     app.buttons["perps_class_transfer"].tap()
     _ = perpsResult("Action succeeded")
+    app.navigationBars.buttons["Done"].tap()
     for _ in 0..<10 { app.swipeDown() }
     app.buttons["Available balances"].tap()
-    XCTAssertTrue(app.staticTexts["Total: 0.5"].waitForExistence(timeout: 15))
-    reachTradingControl(app.staticTexts["Account value: 0.5"])
-    XCTAssertTrue(app.staticTexts["Account value: 0.5"].exists)
-    app.navigationBars.buttons.element(boundBy: 0).tap()
+    XCTAssertTrue(app.descendants(matching: .any)["amount_Total"].waitForExistence(timeout: 15))
+    XCTAssertEqual(app.descendants(matching: .any)["amount_Total"].value as? String, "0.5")
+    reachTradingControl(app.descendants(matching: .any)["amount_Account value"])
+    XCTAssertEqual(app.descendants(matching: .any)["amount_Account value"].value as? String, "0.5")
+    goBack()
     reachTradingControl(app.buttons["Perps → Spot"])
     app.buttons["Perps → Spot"].tap()
     XCTAssertTrue(app.buttons["Perps → Spot"].isSelected)
     reachTradingControl(app.buttons["perps_class_transfer"])
     app.buttons["perps_class_transfer"].tap()
     _ = perpsResult("Action succeeded")
+    app.navigationBars.buttons["Done"].tap()
     for _ in 0..<10 { app.swipeDown() }
     app.buttons["Available balances"].tap()
     XCTAssertTrue(app.staticTexts["Total: 1"].waitForExistence(timeout: 15))
@@ -192,24 +200,25 @@ final class HeliqSDKDemoUITests: XCTestCase {
       throw XCTSkip("Funded typed Perps simulator checks are opt-in")
     }
     app.terminate(); app.launchArguments = ["-ui-testing"]; app.launch()
-    app.staticTexts["Settings"].tap(); app.staticTexts["Testnet"].tap()
+    openSettings(); app.buttons["environment_testnet"].tap()
     reachTradingControl(app.buttons["initialize_sdk"]); app.buttons["initialize_sdk"].tap()
     XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
-    app.alerts.buttons["OK"].tap(); app.navigationBars.buttons.element(boundBy: 0).tap()
-    app.staticTexts["Wallet"].tap()
+    app.alerts.buttons["OK"].tap(); goBack()
+    openExample("Wallet")
     XCTAssertEqual(app.staticTexts["connected_wallet_address"].label, expected)
-    app.navigationBars.buttons.element(boundBy: 0).tap(); app.staticTexts["Trading"].tap()
-    app.buttons["open_typed_perps"].tap()
+    goBack()
+    app.tabBars.buttons["Perpetuals"].tap()
     let coin = app.buttons["perps_coin"]
     XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "label CONTAINS 'BTC'"), object: coin)], timeout: 15), .completed)
   }
 
+  /// Enters a Perps value without confusing the keyboard toolbar with a sheet's Done button.
   private func fillPerps(_ identifier: String, _ value: String) {
     let field = app.textFields[identifier]
     reachTradingControl(field); field.tap(); field.typeText(value)
     XCTAssertEqual(field.value as? String, value)
-    app.buttons["Done"].tap()
+    if app.keyboards.firstMatch.exists { app.buttons["dismiss_keyboard"].tap() }
     XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
   }
 
@@ -225,21 +234,23 @@ final class HeliqSDKDemoUITests: XCTestCase {
   // MARK: - Home
 
   func testHome_showsNavigationTitle() {
-    XCTAssertTrue(app.navigationBars["HeliqSDK Demo"].waitForExistence(timeout: 5))
+    XCTAssertTrue(app.navigationBars["Overview"].waitForExistence(timeout: 5))
   }
 
   func testHome_listsAllFeatureEntries() {
-    XCTAssertTrue(app.staticTexts["Info"].exists)
-    XCTAssertTrue(app.staticTexts["Trading"].exists)
-    XCTAssertTrue(app.staticTexts["WebSocket"].exists)
-    XCTAssertTrue(app.staticTexts["Wallet"].exists)
-    XCTAssertTrue(app.staticTexts["Settings"].exists)
+    for tab in ["Overview", "Perpetuals", "API Explorer", "Settings"] {
+      XCTAssertTrue(app.tabBars.buttons[tab].exists)
+    }
+    app.tabBars.buttons["Perpetuals"].tap()
+    XCTAssertTrue(app.buttons["connect_from_perps"].exists)
+    app.buttons["connect_from_perps"].tap()
+    XCTAssertTrue(app.navigationBars["Settings"].exists)
   }
 
   // MARK: - Settings
 
   func testSettings_canOpenAndShowEnvironments() {
-    app.staticTexts["Settings"].tap()
+    openSettings()
     XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
     XCTAssertTrue(app.staticTexts["Mainnet"].exists || app.buttons["Mainnet"].exists)
     XCTAssertTrue(app.staticTexts["Testnet"].exists || app.buttons["Testnet"].exists)
@@ -248,19 +259,19 @@ final class HeliqSDKDemoUITests: XCTestCase {
   // MARK: - Info
 
   func testInfo_opensMarketDataSection() {
-    app.staticTexts["Info"].tap()
+    openExample("Info")
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))
     XCTAssertTrue(app.buttons["Load All Mids"].waitForExistence(timeout: 3) ||
                   app.staticTexts["All Mids"].waitForExistence(timeout: 3))
   }
 
   func testInfo_loadAllMidsShowsResultOrError() {
-    app.staticTexts["Settings"].tap()
+    openSettings()
     app.buttons["initialize_sdk"].tap()
     XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
     app.alerts.buttons["OK"].tap()
-    app.navigationBars.buttons.element(boundBy: 0).tap()
-    app.staticTexts["Info"].tap()
+    goBack()
+    openExample("Info")
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))
 
     app.buttons["Load All Mids"].tap()
@@ -271,12 +282,12 @@ final class HeliqSDKDemoUITests: XCTestCase {
   }
 
   func testInfo_loadCandlesShowsChartWithoutError() {
-    app.staticTexts["Settings"].tap()
+    openSettings()
     app.buttons["initialize_sdk"].tap()
     XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
     app.alerts.buttons["OK"].tap()
-    app.navigationBars.buttons.element(boundBy: 0).tap()
-    app.staticTexts["Info"].tap()
+    goBack()
+    openExample("Info")
 
     let load = app.buttons["Load Candles"]
     for _ in 0..<8 {
@@ -299,12 +310,12 @@ final class HeliqSDKDemoUITests: XCTestCase {
   }
 
   func testInfo_userDataQueriesReturnResultsWithoutErrors() {
-    app.staticTexts["Settings"].tap()
+    openSettings()
     app.buttons["initialize_sdk"].tap()
     XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
     app.alerts.buttons["OK"].tap()
-    app.navigationBars.buttons.element(boundBy: 0).tap()
-    app.staticTexts["Info"].tap()
+    goBack()
+    openExample("Info")
     app.buttons["User Data"].tap()
     app.buttons["Use Demo Wallet"].tap()
 
@@ -322,6 +333,8 @@ final class HeliqSDKDemoUITests: XCTestCase {
       }
       XCTAssertTrue(load.isHittable, button + app.debugDescription)
       load.tap()
+      let details = app.buttons.containing(.staticText, identifier: result + "_details").firstMatch
+      if details.waitForExistence(timeout: 20) { details.tap() }
       XCTAssertTrue(app.staticTexts[result].waitForExistence(timeout: 20), button + app.debugDescription)
       XCTAssertFalse(app.staticTexts["info_error"].exists, button)
     }
@@ -348,6 +361,10 @@ final class HeliqSDKDemoUITests: XCTestCase {
           .press(forDuration: 0.05, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.55)))
       }
       query.tap()
+      if !app.staticTexts["orders_result"].exists {
+        let details = app.buttons.containing(.staticText, identifier: "orders_result_details").firstMatch
+        XCTAssertTrue(details.waitForExistence(timeout: 20)); details.tap()
+      }
       XCTAssertTrue(app.staticTexts["orders_result"].waitForExistence(timeout: 20), app.debugDescription)
       XCTAssertEqual(app.staticTexts["orders_result"].label.filter { !$0.isWhitespace }, "[]")
       XCTAssertFalse(app.staticTexts["info_error"].exists, button)
@@ -358,12 +375,12 @@ final class HeliqSDKDemoUITests: XCTestCase {
   }
 
   func testInfo_metadataAndBuilderFeeUseTypedSDKWithoutErrors() {
-    app.staticTexts["Settings"].tap()
+    openSettings()
     app.buttons["initialize_sdk"].tap()
     XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
     app.alerts.buttons["OK"].tap()
-    app.navigationBars.buttons.element(boundBy: 0).tap()
-    app.staticTexts["Info"].tap()
+    goBack()
+    openExample("Info")
     app.buttons["Metadata"].tap()
 
     for (button, result) in [("Load Meta", "perpetual_meta_result"), ("Load Spot Meta", "spot_meta_result")] {
@@ -397,7 +414,7 @@ final class HeliqSDKDemoUITests: XCTestCase {
   }
 
   func testInfo_segmentedControl_switchesSections() {
-    app.staticTexts["Info"].tap()
+    openExample("Info")
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))
 
     // Market Data is default; switch to User Data then Metadata
@@ -416,7 +433,7 @@ final class HeliqSDKDemoUITests: XCTestCase {
   // MARK: - Trading
 
   func testTrading_opensExchangeSections() {
-    app.staticTexts["Trading"].tap()
+    openExample("Trading")
     XCTAssertTrue(app.navigationBars["Exchange API"].waitForExistence(timeout: 3))
     // Either not-initialized banner or Orders section
     let notInit = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'not initialized'")).firstMatch
@@ -425,7 +442,7 @@ final class HeliqSDKDemoUITests: XCTestCase {
   }
 
   func testTrading_segmentedControl_hasAllTabs() {
-    app.staticTexts["Trading"].tap()
+    openExample("Trading")
     XCTAssertTrue(app.navigationBars["Exchange API"].waitForExistence(timeout: 3))
     for tab in ["Orders", "Position", "Transfers", "Account"] {
       XCTAssertTrue(app.buttons[tab].exists || app.staticTexts[tab].exists,
@@ -445,7 +462,7 @@ final class HeliqSDKDemoUITests: XCTestCase {
   // MARK: - WebSocket
 
   func testWebSocket_opensConnectionControls() {
-    app.staticTexts["WebSocket"].tap()
+    openExample("WebSocket")
     // Title may vary; look for Connect control
     let connect = app.buttons["Connect"]
     let disconnected = app.staticTexts["Disconnected"]
@@ -455,7 +472,7 @@ final class HeliqSDKDemoUITests: XCTestCase {
   // MARK: - Wallet
 
   func testWallet_opens() {
-    app.staticTexts["Wallet"].tap()
+    openExample("Wallet")
     // Any wallet-related content
     let nav = app.navigationBars.firstMatch
     XCTAssertTrue(nav.waitForExistence(timeout: 3))
@@ -464,22 +481,52 @@ final class HeliqSDKDemoUITests: XCTestCase {
   // MARK: - Navigation round-trip
 
   func testNavigation_backFromInfo_returnsHome() {
-    app.staticTexts["Info"].tap()
+    openExample("Info")
     XCTAssertTrue(app.navigationBars["Info API"].waitForExistence(timeout: 3))
-    app.navigationBars.buttons.element(boundBy: 0).tap()
-    XCTAssertTrue(app.navigationBars["HeliqSDK Demo"].waitForExistence(timeout: 3))
+    goBack()
+    XCTAssertTrue(app.navigationBars["API Explorer"].waitForExistence(timeout: 3))
   }
 
   func testNavigation_visitAllFeatures() {
-    let features = ["Info", "Trading", "WebSocket", "Wallet", "Settings"]
-    for feature in features {
-      XCTAssertTrue(app.staticTexts[feature].waitForExistence(timeout: 3), "Missing home entry: \(feature)")
-      app.staticTexts[feature].tap()
-      // Go back
-      if app.navigationBars.buttons.count > 0 {
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-      }
-      XCTAssertTrue(app.navigationBars["HeliqSDK Demo"].waitForExistence(timeout: 3))
+    for feature in ["Info", "Trading", "WebSocket", "Wallet"] {
+      openExample(feature)
+      goBack()
+      XCTAssertTrue(app.navigationBars["API Explorer"].exists)
     }
+    app.tabBars.buttons["Overview"].tap()
+    XCTAssertTrue(app.navigationBars["Overview"].exists)
+  }
+
+  /// Selects the settings tab, keeping its navigation stack independent of API examples.
+  private func openSettings() {
+    app.tabBars.buttons["Settings"].tap()
+  }
+
+  /// Opens an existing SDK example, initializing the default read-only environment if needed.
+  private func openExample(_ name: String) {
+    app.tabBars.buttons["API Explorer"].tap()
+    let link = app.buttons["nav_" + name.lowercased()]
+    if !link.isEnabled {
+      openSettings()
+      let initialize = app.buttons["initialize_sdk"]
+      if initialize.isEnabled {
+        reachTradingControl(initialize); initialize.tap()
+        XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 10))
+        app.alerts.buttons["OK"].tap()
+      }
+      app.tabBars.buttons["API Explorer"].tap()
+    }
+    link.tap()
+  }
+
+  /// Pops a destination, or returns to Overview when the current tab is already at its root.
+  private func goBack() {
+    let back = app.navigationBars.buttons.matching(identifier: "BackButton").firstMatch
+    if back.exists { back.tap() }
+    else if app.navigationBars["Info API"].exists || app.navigationBars["Exchange API"].exists ||
+      app.navigationBars["Wallet"].exists || app.navigationBars["WebSocket"].exists ||
+      app.navigationBars["Available Balances"].exists {
+      app.navigationBars.buttons.element(boundBy: 0).tap()
+    } else { app.tabBars.buttons["Overview"].tap() }
   }
 }
