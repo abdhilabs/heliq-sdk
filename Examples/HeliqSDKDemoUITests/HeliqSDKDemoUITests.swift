@@ -133,6 +133,95 @@ final class HeliqSDKDemoUITests: XCTestCase {
     add(screenshot)
   }
 
+  func testTypedPerpsBalancesAndTrading() throws {
+    try launchPerpsWallet(expected: "0x444483eba5faa8a1499a4d2261c5e4e927b558cf")
+    app.buttons["Available balances"].tap()
+    XCTAssertTrue(app.staticTexts["balance_mode"].waitForExistence(timeout: 15))
+    XCTAssertEqual(app.staticTexts["balance_mode"].label, "Shared Spot / Perps collateral")
+    XCTAssertFalse(app.staticTexts["balance_error"].exists)
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    fillPerps("perps_transfer_amount", "1")
+    XCTAssertFalse(app.buttons["perps_class_transfer"].isEnabled)
+    for _ in 0..<10 { app.swipeDown() }
+    fillPerps("perps_size", "0.0003")
+    fillPerps("perps_price", "50000")
+    reachTradingControl(app.buttons["submit_perps_order"])
+    app.buttons["submit_perps_order"].tap()
+    _ = perpsResult("Order placed: resting")
+    for _ in 0..<10 { app.swipeDown() }
+    reachTradingControl(app.buttons["perps_cancel_open"])
+    XCTAssertTrue(app.buttons["perps_cancel_open"].waitForExistence(timeout: 5))
+    app.buttons["perps_cancel_open"].tap()
+    _ = perpsResult("Cancelled: 1 orders")
+  }
+
+  func testTypedStandardClassTransferRoundTrip() throws {
+    guard ProcessInfo.processInfo.environment["HELIQ_PERPS_STANDARD_UI_TESTS"] == "1" else {
+      throw XCTSkip("Standard-wallet simulator transfer test is opt-in")
+    }
+    try launchPerpsWallet(expected: "0x309ef1a1b1c9c0b2321213c1ffd2f74f8bdb8c93")
+    app.buttons["Available balances"].tap()
+    XCTAssertTrue(app.staticTexts["balance_mode"].waitForExistence(timeout: 15))
+    XCTAssertEqual(app.staticTexts["balance_mode"].label, "Separate Spot and Perps balances")
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    fillPerps("perps_transfer_amount", "0.5")
+    XCTAssertTrue(app.buttons["perps_class_transfer"].isEnabled)
+    app.buttons["perps_class_transfer"].tap()
+    _ = perpsResult("Action succeeded")
+    for _ in 0..<10 { app.swipeDown() }
+    app.buttons["Available balances"].tap()
+    XCTAssertTrue(app.staticTexts["Total: 0.5"].waitForExistence(timeout: 15))
+    reachTradingControl(app.staticTexts["Account value: 0.5"])
+    XCTAssertTrue(app.staticTexts["Account value: 0.5"].exists)
+    app.navigationBars.buttons.element(boundBy: 0).tap()
+    reachTradingControl(app.buttons["Perps → Spot"])
+    app.buttons["Perps → Spot"].tap()
+    XCTAssertTrue(app.buttons["Perps → Spot"].isSelected)
+    reachTradingControl(app.buttons["perps_class_transfer"])
+    app.buttons["perps_class_transfer"].tap()
+    _ = perpsResult("Action succeeded")
+    for _ in 0..<10 { app.swipeDown() }
+    app.buttons["Available balances"].tap()
+    XCTAssertTrue(app.staticTexts["Total: 1"].waitForExistence(timeout: 15))
+    reachTradingControl(app.staticTexts["Account value: 0"])
+    XCTAssertTrue(app.staticTexts["Account value: 0"].exists)
+  }
+
+  private func launchPerpsWallet(expected: String) throws {
+    guard ProcessInfo.processInfo.environment["HELIQ_PERPS_UI_TESTS"] == "1" else {
+      throw XCTSkip("Funded typed Perps simulator checks are opt-in")
+    }
+    app.terminate(); app.launchArguments = ["-ui-testing"]; app.launch()
+    app.staticTexts["Settings"].tap(); app.staticTexts["Testnet"].tap()
+    reachTradingControl(app.buttons["initialize_sdk"]); app.buttons["initialize_sdk"].tap()
+    XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
+    app.alerts.buttons["OK"].tap(); app.navigationBars.buttons.element(boundBy: 0).tap()
+    app.staticTexts["Wallet"].tap()
+    XCTAssertEqual(app.staticTexts["connected_wallet_address"].label, expected)
+    app.navigationBars.buttons.element(boundBy: 0).tap(); app.staticTexts["Trading"].tap()
+    app.buttons["open_typed_perps"].tap()
+    let coin = app.buttons["perps_coin"]
+    XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label CONTAINS 'BTC'"), object: coin)], timeout: 15), .completed)
+  }
+
+  private func fillPerps(_ identifier: String, _ value: String) {
+    let field = app.textFields[identifier]
+    reachTradingControl(field); field.tap(); field.typeText(value)
+    XCTAssertEqual(field.value as? String, value)
+    app.buttons["Done"].tap()
+    XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+  }
+
+  private func perpsResult(_ prefix: String) -> String {
+    let output = app.staticTexts["perps_result"]
+    reachTradingControl(output)
+    XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+      predicate: NSPredicate(format: "label BEGINSWITH %@", prefix), object: output)], timeout: 15), .completed)
+    XCTAssertFalse(app.staticTexts["perps_error"].exists)
+    return output.label
+  }
+
   // MARK: - Home
 
   func testHome_showsNavigationTitle() {

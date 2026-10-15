@@ -228,6 +228,10 @@ struct InfoView: View {
   
   @ViewBuilder
   private var userDataSection: some View {
+    Section {
+      NavigationLink("Available balances", destination: AvailableBalancesView(address: userAddressInput))
+        .disabled(userAddressInput.isEmpty)
+    }
     Section("User Address") {
       TextField("Wallet Address", text: $userAddressInput)
         .textInputAutocapitalization(.never)

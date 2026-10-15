@@ -86,6 +86,10 @@ struct TradingView: View {
   
   @ViewBuilder
   private var ordersSection: some View {
+    Section {
+      NavigationLink("Typed Perps trading", destination: PerpsTradingView())
+        .accessibilityIdentifier("open_typed_perps")
+    }
     Section("Place Order") {
       PlaceOrderForm(onSubmit: { response in
         errorMessage = nil
