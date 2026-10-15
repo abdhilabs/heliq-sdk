@@ -31,6 +31,7 @@ struct WebSocketView: View {
   
   var body: some View {
     List {
+      Section { DemoStatus() }
       Section("Connection") {
         HStack {
           Circle()
@@ -65,7 +66,7 @@ struct WebSocketView: View {
         .pickerStyle(.menu)
         
         if selectedChannel.requiresCoin {
-          TextField("Coin", text: $customCoin)
+          DemoTextField("Coin", text: $customCoin)
             .textInputAutocapitalization(.characters)
         }
         
@@ -129,12 +130,14 @@ struct WebSocketView: View {
       }
     }
     .navigationTitle("WebSocket")
+    .demoForm()
     .onReceive(webSocketManager.$state) { state in
       connectionState = mapState(state)
     }
     .onReceive(webSocketManager.$subscriptions) { subs in
       activeSubscriptions = subs
     }
+    .onDisappear { disconnect() }
     .onReceive(webSocketManager.$messages) { newMessages in
       messages.append(contentsOf: newMessages.prefix(maxMessages - messages.count))
     }
@@ -258,9 +261,11 @@ struct MessageRow: View {
           .font(.caption2)
           .foregroundStyle(.secondary)
       }
+      DisclosureGroup("Payload") {
       Text(message.data)
         .font(.system(.caption2, design: .monospaced))
-        .lineLimit(3)
+        .textSelection(.enabled)
+      }
     }
     .padding(.vertical, 2)
   }

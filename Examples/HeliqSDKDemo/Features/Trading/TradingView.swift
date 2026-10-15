@@ -7,11 +7,11 @@
 
 import HeliqSDK
 import SwiftUI
-import UIKit
 
 struct TradingView: View {
   @State private var selectedSection: TradingSection = .orders
   @State private var operationResult: String?
+  @State private var isPerforming = false
   @State private var authorizedUsers = ""
   @State private var threshold = ""
   @State private var errorMessage: String?
@@ -35,13 +35,19 @@ struct TradingView: View {
         }
         .pickerStyle(.segmented)
       }
-      
+
       if !sdkManager.isInitialized {
         Section {
           Text("SDK not initialized. Go to Settings to initialize.")
             .foregroundStyle(.secondary)
         }
       } else {
+        if operationResult != nil || errorMessage != nil {
+          Section("Request feedback") {
+            DemoFeedback(result: operationResult, error: errorMessage, prefix: "trade")
+          }
+        }
+        if isPerforming { ProgressView("Submitting…") }
         switch selectedSection {
         case .orders:
           ordersSection
@@ -53,43 +59,14 @@ struct TradingView: View {
           accountSection
         }
       }
-      
-      if let result = operationResult {
-        Section("Result") {
-          Text(result)
-            .accessibilityIdentifier("trade_result")
-            .font(.system(.body, design: .monospaced))
-            .foregroundStyle(.green)
-        }
-      }
-      
-      if let error = errorMessage {
-        Section("Error") {
-          Text(error)
-            .accessibilityIdentifier("trade_error")
-            .foregroundStyle(.red)
-        }
-      }
     }
+    .disabled(isPerforming)
     .navigationTitle("Exchange API")
-    .toolbar {
-      ToolbarItemGroup(placement: .keyboard) {
-        Spacer()
-        Button("Done") {
-          UIApplication.shared.sendAction(
-            #selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil
-          )
-        }
-      }
-    }
+    .demoForm()
   }
   
   @ViewBuilder
   private var ordersSection: some View {
-    Section {
-      NavigationLink("Typed Perps trading", destination: PerpsTradingView())
-        .accessibilityIdentifier("open_typed_perps")
-    }
     Section("Place Order") {
       PlaceOrderForm(onSubmit: { response in
         errorMessage = nil
@@ -210,10 +187,10 @@ struct TradingView: View {
     }
     
     Section("Multi-Sig") {
-      TextField("Signer addresses, comma separated", text: $authorizedUsers)
+      DemoTextField("Signer addresses, comma separated", text: $authorizedUsers)
         .accessibilityIdentifier("trade_multisig_users")
         .textInputAutocapitalization(.never)
-      TextField("Approval threshold", text: $threshold)
+      DemoTextField("Approval threshold", text: $threshold)
         .accessibilityIdentifier("trade_multisig_threshold")
         .keyboardType(.numberPad)
       Button("Convert to Multi-Sig User") {
@@ -241,10 +218,14 @@ struct TradingView: View {
     }
   }
 
+  /// Submits the account operation once using the current connection.
   private func cancelAll() async {
+    guard !isPerforming, let client = sdkManager.client else { return }
+    isPerforming = true
+    defer { isPerforming = false }
     errorMessage = nil
     do {
-      let response = try await sdkManager.sdk.exchange.cancelAll()
+      let response = try await client.exchange.cancelAll()
       operationResult = "Cancelled: \(response.cancelledOrders.count) orders"
       if !response.failedCancels.isEmpty {
         errorMessage = "Failed cancels: \(response.failedCancels.count)"
@@ -254,10 +235,14 @@ struct TradingView: View {
     }
   }
   
+  /// Submits the account operation once using the current connection.
   private func convertToMultiSig() async {
+    guard !isPerforming, let client = sdkManager.client else { return }
+    isPerforming = true
+    defer { isPerforming = false }
     errorMessage = nil
     do {
-      let response = try await sdkManager.sdk.exchange.convertToMultiSigUser(authorizedUsers: authorizedUsers.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, threshold: Int(threshold) ?? 0)
+      let response = try await client.exchange.convertToMultiSigUser(authorizedUsers: authorizedUsers.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, threshold: Int(threshold) ?? 0)
       operationResult = "Multi-sig conversion: \(response.status)"
     } catch {
       showError(error)
@@ -266,6 +251,7 @@ struct TradingView: View {
 }
 
 struct PlaceOrderForm: View {
+  @State private var isSubmitting = false
   @State private var asset = "1"
   @State private var side: OrderSide = .buy
   @State private var orderType: OrderTypeSelection = .limit
@@ -281,7 +267,7 @@ struct PlaceOrderForm: View {
   }
   
   var body: some View {
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_PlaceOrderForm_asset")
     Picker("Side", selection: $side) {
       Text("Buy").tag(OrderSide.buy)
@@ -294,21 +280,25 @@ struct PlaceOrderForm: View {
       }
     }
     .pickerStyle(.segmented)
-    TextField("Size", text: $size)
+    DemoTextField("Size", text: $size)
       .accessibilityIdentifier("trade_PlaceOrderForm_size")
       .keyboardType(.decimalPad)
     if orderType == .limit {
-      TextField("Price", text: $price)
+      DemoTextField("Price", text: $price)
       .accessibilityIdentifier("trade_PlaceOrderForm_price")
         .keyboardType(.decimalPad)
     }
     Button("Place Order") {
       submit()
     }
-    .disabled(asset.isEmpty || size.isEmpty || (orderType == .limit && price.isEmpty))
+    .disabled(isSubmitting || asset.isEmpty || size.isEmpty || (orderType == .limit && price.isEmpty))
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     let type: OrderType = orderType == .market ? .market : .limit
     let order = OrderRequest(
       asset: Int(asset) ?? 1,
@@ -318,8 +308,12 @@ struct PlaceOrderForm: View {
       price: orderType == .limit ? Double(price) : nil
     )
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.placeOrder(order)
+        let response = try await client.exchange.placeOrder(order)
         await MainActor.run {
           onSubmit(response)
         }
@@ -331,6 +325,7 @@ struct PlaceOrderForm: View {
 }
 
 struct BulkOrdersForm: View {
+  @State private var isSubmitting = false
   @State private var ordersJson = "[{\"asset\":1,\"side\":\"Buy\",\"orderType\":{\"type\":\"limit\"},\"size\":0.01,\"price\":50000,\"reduceOnly\":false}]"
   
   let onSubmit: (BulkOrderResponse) -> Void
@@ -343,12 +338,21 @@ struct BulkOrdersForm: View {
     Button("Submit Bulk Orders") {
       submit()
     }
+    .disabled(isSubmitting)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.bulkOrders(JSONDecoder().decode([OrderRequest].self, from: Data(ordersJson.utf8)))
+        let response = try await client.exchange.bulkOrders(JSONDecoder().decode([OrderRequest].self, from: Data(ordersJson.utf8)))
         await MainActor.run {
           onSubmit(response)
         }
@@ -360,6 +364,7 @@ struct BulkOrdersForm: View {
 }
 
 struct CancelOrderForm: View {
+  @State private var isSubmitting = false
   @State private var orderId = ""
   @State private var asset = "1"
   
@@ -367,21 +372,29 @@ struct CancelOrderForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Order ID", text: $orderId)
+    DemoTextField("Order ID", text: $orderId)
       .accessibilityIdentifier("trade_CancelOrderForm_orderId")
       .textInputAutocapitalization(.never)
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_CancelOrderForm_asset")
     Button("Cancel Order") {
       submit()
     }
-    .disabled(orderId.isEmpty)
+    .disabled(isSubmitting || orderId.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.cancelOrder(
+        let response = try await client.exchange.cancelOrder(
           orderId: orderId,
           asset: Int(asset) ?? 1
         )
@@ -396,6 +409,7 @@ struct CancelOrderForm: View {
 }
 
 struct CancelByCloidForm: View {
+  @State private var isSubmitting = false
   @State private var cloid = ""
   @State private var asset = "1"
   
@@ -403,21 +417,29 @@ struct CancelByCloidForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("CLOB ID", text: $cloid)
+    DemoTextField("CLOB ID", text: $cloid)
       .accessibilityIdentifier("trade_CancelByCloidForm_cloid")
       .textInputAutocapitalization(.never)
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_CancelByCloidForm_asset")
     Button("Cancel by CLOB ID") {
       submit()
     }
-    .disabled(cloid.isEmpty)
+    .disabled(isSubmitting || cloid.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.cancelByCloid(
+        let response = try await client.exchange.cancelByCloid(
           cloid: cloid,
           asset: Int(asset) ?? 1
         )
@@ -432,6 +454,7 @@ struct CancelByCloidForm: View {
 }
 
 struct ModifyOrderForm: View {
+  @State private var isSubmitting = false
   @State private var orderId = ""
   @State private var asset = "1"
   @State private var size = ""
@@ -441,27 +464,35 @@ struct ModifyOrderForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Order ID", text: $orderId)
+    DemoTextField("Order ID", text: $orderId)
       .accessibilityIdentifier("trade_ModifyOrderForm_orderId")
       .textInputAutocapitalization(.never)
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_ModifyOrderForm_asset")
-    TextField("New Size (optional)", text: $size)
+    DemoTextField("New Size (optional)", text: $size)
       .accessibilityIdentifier("trade_ModifyOrderForm_size")
       .keyboardType(.decimalPad)
-    TextField("New Price (optional)", text: $price)
+    DemoTextField("New Price (optional)", text: $price)
       .accessibilityIdentifier("trade_ModifyOrderForm_price")
       .keyboardType(.decimalPad)
     Button("Modify Order") {
       submit()
     }
-    .disabled(orderId.isEmpty)
+    .disabled(isSubmitting || orderId.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.modifyOrder(
+        let response = try await client.exchange.modifyOrder(
           orderId: orderId,
           asset: Int(asset) ?? 1,
           size: size.isEmpty ? nil : Double(size),
@@ -478,6 +509,7 @@ struct ModifyOrderForm: View {
 }
 
 struct SetLeverageForm: View {
+  @State private var isSubmitting = false
   @State private var asset = "1"
   @State private var leverage = "10"
   
@@ -485,21 +517,29 @@ struct SetLeverageForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_SetLeverageForm_asset")
-    TextField("Leverage", text: $leverage)
+    DemoTextField("Leverage", text: $leverage)
       .accessibilityIdentifier("trade_SetLeverageForm_leverage")
       .keyboardType(.numberPad)
     Button("Set Leverage") {
       submit()
     }
-    .disabled(leverage.isEmpty)
+    .disabled(isSubmitting || leverage.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.setLeverage(
+        let response = try await client.exchange.setLeverage(
           asset: Int(asset) ?? 1,
           leverage: Int(leverage) ?? 10
         )
@@ -514,6 +554,7 @@ struct SetLeverageForm: View {
 }
 
 struct SetMarginModeForm: View {
+  @State private var isSubmitting = false
   @State private var asset = "1"
   @State private var mode: MarginMode = .cross
   
@@ -521,7 +562,7 @@ struct SetMarginModeForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_SetMarginModeForm_asset")
     Picker("Mode", selection: $mode) {
       Text("Cross").tag(MarginMode.cross)
@@ -531,12 +572,21 @@ struct SetMarginModeForm: View {
     Button("Set Margin Mode") {
       submit()
     }
+    .disabled(isSubmitting)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.setMarginMode(
+        let response = try await client.exchange.setMarginMode(
           asset: Int(asset) ?? 1,
           mode: mode
         )
@@ -551,6 +601,7 @@ struct SetMarginModeForm: View {
 }
 
 struct TransferForm: View {
+  @State private var isSubmitting = false
   @State private var toAddress = ""
   @State private var amount = ""
   @State private var asset = "0"
@@ -559,24 +610,32 @@ struct TransferForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("To Address", text: $toAddress)
+    DemoTextField("To Address", text: $toAddress)
       .accessibilityIdentifier("trade_TransferForm_toAddress")
       .textInputAutocapitalization(.never)
-    TextField("Amount", text: $amount)
+    DemoTextField("Amount", text: $amount)
       .accessibilityIdentifier("trade_TransferForm_amount")
       .keyboardType(.decimalPad)
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_TransferForm_asset")
     Button("Transfer") {
       submit()
     }
-    .disabled(toAddress.isEmpty || amount.isEmpty)
+    .disabled(isSubmitting || toAddress.isEmpty || amount.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.transfer(
+        let response = try await client.exchange.transfer(
           fromAddress: SDKManager.shared.walletAddress ?? "",
           toAddress: toAddress,
           amount: Double(amount) ?? 0,
@@ -593,6 +652,7 @@ struct TransferForm: View {
 }
 
 struct SendToAddressForm: View {
+  @State private var isSubmitting = false
   @State private var address = ""
   @State private var amount = ""
   @State private var asset = "0"
@@ -601,24 +661,32 @@ struct SendToAddressForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Address", text: $address)
+    DemoTextField("Address", text: $address)
       .accessibilityIdentifier("trade_SendToAddressForm_address")
       .textInputAutocapitalization(.never)
-    TextField("Amount", text: $amount)
+    DemoTextField("Amount", text: $amount)
       .accessibilityIdentifier("trade_SendToAddressForm_amount")
       .keyboardType(.decimalPad)
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_SendToAddressForm_asset")
     Button("Send to Address") {
       submit()
     }
-    .disabled(address.isEmpty || amount.isEmpty)
+    .disabled(isSubmitting || address.isEmpty || amount.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.sendToAddress(
+        let response = try await client.exchange.sendToAddress(
           address: address,
           amount: Double(amount) ?? 0,
           asset: Int(asset) ?? 0
@@ -634,6 +702,7 @@ struct SendToAddressForm: View {
 }
 
 struct SpotTransferForm: View {
+  @State private var isSubmitting = false
   @State private var toAddress = ""
   @State private var amount = ""
   @State private var asset = "0"
@@ -642,24 +711,32 @@ struct SpotTransferForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("To Address", text: $toAddress)
+    DemoTextField("To Address", text: $toAddress)
       .accessibilityIdentifier("trade_SpotTransferForm_toAddress")
       .textInputAutocapitalization(.never)
-    TextField("Amount", text: $amount)
+    DemoTextField("Amount", text: $amount)
       .accessibilityIdentifier("trade_SpotTransferForm_amount")
       .keyboardType(.decimalPad)
-    TextField("Asset (#)", text: $asset)
+    DemoTextField("Asset (#)", text: $asset)
       .accessibilityIdentifier("trade_SpotTransferForm_asset")
     Button("Spot Transfer") {
       submit()
     }
-    .disabled(toAddress.isEmpty || amount.isEmpty)
+    .disabled(isSubmitting || toAddress.isEmpty || amount.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.spotTransfer(
+        let response = try await client.exchange.spotTransfer(
           toAddress: toAddress,
           amount: Double(amount) ?? 0,
           asset: Int(asset) ?? 0
@@ -675,6 +752,7 @@ struct SpotTransferForm: View {
 }
 
 struct VaultTransferForm: View {
+  @State private var isSubmitting = false
   @State private var vaultAddress = ""
   @State private var isFromVault = true
   @State private var amount = ""
@@ -683,7 +761,7 @@ struct VaultTransferForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Vault Address", text: $vaultAddress)
+    DemoTextField("Vault Address", text: $vaultAddress)
       .accessibilityIdentifier("trade_VaultTransferForm_vaultAddress")
       .textInputAutocapitalization(.never)
     Picker("Direction", selection: $isFromVault) {
@@ -691,16 +769,20 @@ struct VaultTransferForm: View {
       Text("From Vault").tag(true)
     }
     .pickerStyle(.segmented)
-    TextField("USDC Amount", text: $amount)
+    DemoTextField("USDC Amount", text: $amount)
       .accessibilityIdentifier("trade_VaultTransferForm_amount")
       .keyboardType(.decimalPad)
     Button("Vault Transfer") {
       submit()
     }
-    .disabled(vaultAddress.isEmpty || amount.isEmpty)
+    .disabled(isSubmitting || vaultAddress.isEmpty || amount.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     let vaultTransfer = VaultTransfer(
       fromVault: isFromVault,
       toVault: !isFromVault,
@@ -708,8 +790,12 @@ struct VaultTransferForm: View {
       vaultAddress: vaultAddress
     )
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.vaultTransfer(vaultTransfer: vaultTransfer)
+        let response = try await client.exchange.vaultTransfer(vaultTransfer: vaultTransfer)
         await MainActor.run {
           onSubmit(response)
         }
@@ -721,6 +807,7 @@ struct VaultTransferForm: View {
 }
 
 struct UpdateBuilderForm: View {
+  @State private var isSubmitting = false
   @State private var builderAddress = ""
   @State private var maxFeeRate = ""
   
@@ -728,21 +815,29 @@ struct UpdateBuilderForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Builder Address", text: $builderAddress)
+    DemoTextField("Builder Address", text: $builderAddress)
       .accessibilityIdentifier("trade_UpdateBuilderForm_builderAddress")
       .textInputAutocapitalization(.never)
-    TextField("Maximum fee (e.g. 0.01%)", text: $maxFeeRate)
+    DemoTextField("Maximum fee (e.g. 0.01%)", text: $maxFeeRate)
       .accessibilityIdentifier("trade_UpdateBuilderForm_maxFeeRate")
     Button("Update Builder") {
       submit()
     }
-    .disabled(builderAddress.isEmpty || maxFeeRate.isEmpty)
+    .disabled(isSubmitting || builderAddress.isEmpty || maxFeeRate.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.updateBuilder(builderAddress: builderAddress, maxFeeRate: maxFeeRate)
+        let response = try await client.exchange.updateBuilder(builderAddress: builderAddress, maxFeeRate: maxFeeRate)
         await MainActor.run {
           onSubmit(response)
         }
@@ -754,6 +849,7 @@ struct UpdateBuilderForm: View {
 }
 
 struct ScheduleCancelForm: View {
+  @State private var isSubmitting = false
   @State private var timeOffset: TimeInterval = 60
   
   let onSubmit: (ScheduleCancelResponse) -> Void
@@ -770,12 +866,21 @@ struct ScheduleCancelForm: View {
     Button("Schedule Cancel") {
       submit()
     }
+    .disabled(isSubmitting)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.scheduleCancel(
+        let response = try await client.exchange.scheduleCancel(
           time: Date().addingTimeInterval(timeOffset)
         )
         await MainActor.run {
@@ -789,25 +894,34 @@ struct ScheduleCancelForm: View {
 }
 
 struct SetReferrerForm: View {
+  @State private var isSubmitting = false
   @State private var referrer = ""
   
   let onSubmit: (SetReferrerResponse) -> Void
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Referral Code", text: $referrer)
+    DemoTextField("Referral Code", text: $referrer)
       .accessibilityIdentifier("trade_SetReferrerForm_referrer")
       .textInputAutocapitalization(.never)
     Button("Set Referrer") {
       submit()
     }
-    .disabled(referrer.isEmpty)
+    .disabled(isSubmitting || referrer.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.setReferrer(referrer: referrer)
+        let response = try await client.exchange.setReferrer(referrer: referrer)
         await MainActor.run {
           onSubmit(response)
         }
@@ -819,6 +933,7 @@ struct SetReferrerForm: View {
 }
 
 struct UsdSendForm: View {
+  @State private var isSubmitting = false
   @State private var destination = ""
   @State private var amount = ""
   
@@ -826,22 +941,30 @@ struct UsdSendForm: View {
   let onError: (Error) -> Void
   
   var body: some View {
-    TextField("Destination", text: $destination)
+    DemoTextField("Destination", text: $destination)
       .accessibilityIdentifier("trade_UsdSendForm_destination")
       .textInputAutocapitalization(.never)
-    TextField("Amount", text: $amount)
+    DemoTextField("Amount", text: $amount)
       .accessibilityIdentifier("trade_UsdSendForm_amount")
       .keyboardType(.decimalPad)
     Button("Send USDC") {
       submit()
     }
-    .disabled(destination.isEmpty || amount.isEmpty)
+    .disabled(isSubmitting || destination.isEmpty || amount.isEmpty)
+    if isSubmitting { ProgressView("Submitting…") }
   }
   
+  /// Submits this example once and retains the entered parameters after a failure.
   private func submit() {
+    guard !isSubmitting else { return }
+    isSubmitting = true
     Task {
+      defer { isSubmitting = false }
+      guard let client = SDKManager.shared.client else {
+        onError(ValidationError.malformedData(reason: "Connect in Settings first")); return
+      }
       do {
-        let response = try await SDKManager.shared.sdk.exchange.usdSend(
+        let response = try await client.exchange.usdSend(
           destination: destination,
           amount: Double(amount) ?? 0
         )

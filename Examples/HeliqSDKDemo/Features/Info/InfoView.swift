@@ -12,7 +12,7 @@ struct InfoView: View {
   @State private var selectedSection: InfoSection = .marketData
   @State private var isLoading = false
   @State private var errorMessage: String?
-  
+
   @State private var allMids: AllMids?
   @State private var assetCtxs: [AssetContext] = []
   @State private var spotAssetCtxs: [SpotAssetContext] = []
@@ -26,7 +26,7 @@ struct InfoView: View {
   @State private var spotMeta: Meta?
   @State private var builderFee: BuilderFee?
   @State private var orders: [Order]?
-  
+
   @State private var selectedCoin = "BTC"
   private enum OrderField: Hashable { case oid, cloid, builder }
   @FocusState private var focusedOrderField: OrderField?
@@ -36,15 +36,15 @@ struct InfoView: View {
   @State private var builderAddressInput = ""
   @State private var candleInterval = "1m"
   @State private var candleCoinInput = "BTC"
-  
+
   private let sdkManager = SDKManager.shared
-  
+
   enum InfoSection: String, CaseIterable {
     case marketData = "Market Data"
     case userData = "User Data"
     case metadata = "Metadata"
   }
-  
+
   var body: some View {
     List {
       Section {
@@ -56,15 +56,6 @@ struct InfoView: View {
         .pickerStyle(.segmented)
       }
       
-      switch selectedSection {
-      case .marketData:
-        marketDataSection
-      case .userData:
-        userDataSection
-      case .metadata:
-        metadataSection
-      }
-
       if isLoading {
         Section {
           HStack {
@@ -81,13 +72,25 @@ struct InfoView: View {
             .accessibilityIdentifier("info_error")
         }
       }
+
+      Group {
+      switch selectedSection {
+      case .marketData:
+        marketDataSection
+      case .userData:
+        userDataSection
+      case .metadata:
+        metadataSection
+      }
+      }.disabled(isLoading)
     }
     .navigationTitle("Info API")
+    .demoForm()
     .refreshable {
       await refreshCurrentSection()
     }
   }
-  
+
   @ViewBuilder
   private var marketDataSection: some View {
     Section("All Mids") {
@@ -155,7 +158,7 @@ struct InfoView: View {
     }
     
     Section("Order Book (L2)") {
-      TextField("Coin (e.g. BTC)", text: $selectedCoin)
+      DemoTextField("Coin (e.g. BTC)", text: $selectedCoin)
         .textInputAutocapitalization(.characters)
       if let book = l2Book {
         VStack(alignment: .leading, spacing: 4) {
@@ -204,7 +207,7 @@ struct InfoView: View {
     }
     
     Section("Candles") {
-      TextField("Coin", text: $candleCoinInput)
+      DemoTextField("Coin", text: $candleCoinInput)
         .textInputAutocapitalization(.characters)
       Picker("Interval", selection: $candleInterval) {
         Text("1m").tag("1m")
@@ -225,7 +228,7 @@ struct InfoView: View {
     }
     
   }
-  
+
   @ViewBuilder
   private var userDataSection: some View {
     Section {
@@ -233,7 +236,7 @@ struct InfoView: View {
         .disabled(userAddressInput.isEmpty)
     }
     Section("User Address") {
-      TextField("Wallet Address", text: $userAddressInput)
+      DemoTextField("Wallet Address", text: $userAddressInput)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
       Text("Enter a 0x-prefixed wallet address. Never fund the public demo wallet.")
@@ -291,7 +294,7 @@ struct InfoView: View {
       if let orders {
         userResponse(orders, identifier: "orders_result")
       }
-      TextField("Order ID", text: $orderIdInput)
+      DemoTextField("Order ID", text: $orderIdInput)
         .textInputAutocapitalization(.never)
         .focused($focusedOrderField, equals: .oid)
         .submitLabel(.done)
@@ -303,7 +306,7 @@ struct InfoView: View {
       
       Divider()
       
-      TextField("CLOB ID (cloid)", text: $cloidInput)
+      DemoTextField("CLOB ID (cloid)", text: $cloidInput)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .focused($focusedOrderField, equals: .cloid)
@@ -315,13 +318,14 @@ struct InfoView: View {
       .disabled(!userAddressInput.isValidEthereumAddress || !cloidInput.hasPrefix("0x") || cloidInput.count != 34 || !cloidInput.isValidHex)
     }
   }
-  
+
   @ViewBuilder
   private var metadataSection: some View {
     Section("Meta (Perpetual)") {
       if let meta = meta {
         Text("Loaded \(meta.universe.count) perpetual markets")
           .accessibilityIdentifier("perpetual_meta_result")
+        DisclosureGroup("Market details") {
         ForEach(meta.universe.prefix(10)) { asset in
           VStack(alignment: .leading, spacing: 2) {
             Text(asset.name)
@@ -340,6 +344,7 @@ struct InfoView: View {
           Text("... and \(meta.universe.count - 10) more")
             .foregroundStyle(.secondary)
         }
+        }
       }
       Button("Load Meta") {
         Task { await loadMeta() }
@@ -350,6 +355,7 @@ struct InfoView: View {
       if let meta = spotMeta {
         Text("Loaded \(meta.universe.count) spot markets")
           .accessibilityIdentifier("spot_meta_result")
+        DisclosureGroup("Market details") {
         ForEach(Array(meta.universe.prefix(10)), id: \.id) { asset in
           VStack(alignment: .leading, spacing: 2) {
             Text(asset.name)
@@ -365,6 +371,7 @@ struct InfoView: View {
           Text("... and \(meta.universe.count - 10) more")
             .foregroundStyle(.secondary)
         }
+        }
       }
       Button("Load Spot Meta") {
         Task { await loadSpotMeta() }
@@ -372,7 +379,7 @@ struct InfoView: View {
     }
     
     Section("Builder Fee") {
-      TextField("Builder Address", text: $builderAddressInput)
+      DemoTextField("Builder Address", text: $builderAddressInput)
         .textInputAutocapitalization(.never)
         .autocorrectionDisabled()
         .focused($focusedOrderField, equals: .builder)
@@ -394,7 +401,7 @@ struct InfoView: View {
       .disabled(!builderAddressInput.hasPrefix("0x") || !builderAddressInput.isValidEthereumAddress)
     }
   }
-  
+
   private func refreshCurrentSection() async {
     switch selectedSection {
     case .marketData:
@@ -413,22 +420,24 @@ struct InfoView: View {
       await loadSpotMeta()
     }
   }
-  
+
   private func userResponse<T: Encodable>(_ response: T, identifier: String) -> some View {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
     let text = (try? encoder.encode(response)).map { String(decoding: $0, as: UTF8.self) } ?? ""
-    return ScrollView {
-      Text(text)
-        .font(.system(.caption, design: .monospaced))
-        .textSelection(.enabled)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityIdentifier(identifier)
+    return DisclosureGroup {
+      ScrollView {
+        Text(text).font(.system(.caption, design: .monospaced))
+          .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+          .accessibilityIdentifier(identifier)
+      }.frame(height: 200)
+    } label: {
+      Text("Response details").accessibilityIdentifier(identifier + "_details")
     }
-    .frame(height: 200)
   }
 
   private func performInfoRequest(_ operation: () async throws -> Void) async {
+    guard !isLoading, sdkManager.client != nil else { return }
     isLoading = true
     errorMessage = nil
     defer { isLoading = false }
@@ -452,26 +461,26 @@ struct InfoView: View {
       allMids = try await sdkManager.sdk.info.getAllMids()
     }
   }
-  
+
   private func loadAssetCtxs() async {
     await performInfoRequest {
       assetCtxs = try await sdkManager.sdk.info.getAssetCtxs()
     }
   }
-  
+
   private func loadSpotAssetCtxs() async {
     await performInfoRequest {
       spotAssetCtxs = try await sdkManager.sdk.info.getSpotAssetCtxs()
     }
   }
-  
+
   private func loadL2Book() async {
     guard !selectedCoin.isEmpty else { return }
     await performInfoRequest {
       l2Book = try await sdkManager.sdk.info.getL2Book(coin: selectedCoin.uppercased())
     }
   }
-  
+
   private func loadCandles() async {
     guard !candleCoinInput.isEmpty else { return }
     let endTime = Date()
@@ -485,35 +494,35 @@ struct InfoView: View {
       )
     }
   }
-  
+
   private func loadUserState() async {
     guard !userAddressInput.isEmpty else { return }
     await performInfoRequest {
       userState = try await sdkManager.sdk.info.getUserState(address: userAddressInput)
     }
   }
-  
+
   private func loadSpotUserState() async {
     guard !userAddressInput.isEmpty else { return }
     await performInfoRequest {
       spotUserState = try await sdkManager.sdk.info.getSpotUserState(address: userAddressInput)
     }
   }
-  
+
   private func loadFills() async {
     guard !userAddressInput.isEmpty else { return }
     await performInfoRequest {
       fills = try await sdkManager.sdk.info.queryFills(address: userAddressInput)
     }
   }
-  
+
   private func loadUserFundings() async {
     guard !userAddressInput.isEmpty else { return }
     await performInfoRequest {
       userFundings = try await sdkManager.sdk.info.queryUserFundings(address: userAddressInput)
     }
   }
-  
+
   private func queryOrderByOid() async {
     guard let oid = Int64(orderIdInput), oid >= 0 else { return }
     await performInfoRequest {
@@ -521,7 +530,7 @@ struct InfoView: View {
       orders = try await sdkManager.sdk.info.queryOrderByOid(orderId: String(oid), address: userAddressInput)
     }
   }
-  
+
   private func queryOrderByCloid() async {
     guard !cloidInput.isEmpty else { return }
     await performInfoRequest {
@@ -529,26 +538,26 @@ struct InfoView: View {
       orders = try await sdkManager.sdk.info.queryOrderByCloid(cloid: cloidInput, address: userAddressInput)
     }
   }
-  
+
   private func loadMeta() async {
     await performInfoRequest {
       meta = try await sdkManager.sdk.info.getMeta()
     }
   }
-  
+
   private func loadSpotMeta() async {
     await performInfoRequest {
       spotMeta = try await sdkManager.sdk.info.getSpotMeta()
     }
   }
-  
+
   private func fetchBuilderFee() async {
     guard !builderAddressInput.isEmpty else { return }
     await performInfoRequest {
       builderFee = try await sdkManager.sdk.info.fetchBuilderFee(builderAddress: builderAddressInput)
     }
   }
-  
+
   private func formatDate(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
