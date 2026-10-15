@@ -1,7 +1,7 @@
 # Typed Perps validation — 2026-10-15
 
 Scope and operation-to-fixture mapping: [coverage matrix](PERPS_API_COVERAGE.md).
-Examples: [balances and Perps](Sources/HeliqSDK/HeliqSDK.docc/PerpsAndBalances.md).
+Examples: [balances and Perps](../Sources/HeliqSDK/HeliqSDK.docc/PerpsAndBalances.md).
 
 ## Passed
 
