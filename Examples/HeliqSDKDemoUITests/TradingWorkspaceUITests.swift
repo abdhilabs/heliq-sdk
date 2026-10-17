@@ -12,7 +12,7 @@ final class TradingWorkspaceUITests: XCTestCase {
   private var app: XCUIApplication!
 
   /// Stops at the first failed UI assertion so later taps cannot trigger unintended actions.
-  override func setUpWithError() throws {
+  override func setUp() async throws {
     continueAfterFailure = false
     XCUIDevice.shared.orientation = .portrait
     app = XCUIApplication()
@@ -26,15 +26,30 @@ final class TradingWorkspaceUITests: XCTestCase {
   }
 
   /// Reaches an offscreen control without assuming a particular display size or text scale.
-  private func reach(_ element: XCUIElement) {
-    for _ in 0..<24 {
-      if element.exists && element.isHittable { return }
-      let above = element.exists && element.frame.midY < app.navigationBars.firstMatch.frame.maxY
-      let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: above ? 0.45 : 0.75))
-      let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: above ? 0.65 : 0.55))
+  private func reach(_ element: XCUIElement, scrollingDown: Bool = true) {
+    var downward = scrollingDown
+    var previousFrame: CGRect?
+    for _ in 0..<25 {
+      let top = app.navigationBars.firstMatch.frame.maxY
+      let bottom = app.tabBars.firstMatch.exists
+        ? app.tabBars.firstMatch.frame.minY : app.frame.maxY
+      if element.exists && element.isHittable
+        && element.frame.minY >= top && element.frame.maxY <= bottom { return }
+      let first = app.collectionViews.firstMatch.cells.firstMatch
+      let firstFrame = first.exists ? first.frame : .zero
+      if element.exists {
+        downward = element.frame.minY >= top
+      } else if previousFrame == firstFrame {
+        downward.toggle()
+      }
+      previousFrame = firstFrame
+      let gutter = app.frame.width > app.frame.height ? 0.94 : 0.98
+      let start = app.coordinate(withNormalizedOffset:
+        CGVector(dx: gutter, dy: downward ? 0.8 : 0.4))
+      let end = app.coordinate(withNormalizedOffset: CGVector(dx: gutter, dy: 0.6))
       start.press(forDuration: 0.05, thenDragTo: end)
     }
-    XCTAssertTrue(element.isHittable, element.description + app.debugDescription)
+    XCTAssertTrue(element.isHittable, app.debugDescription)
   }
 
   /// Enters a sample form value and dismisses its keyboard using the shared toolbar.
@@ -151,7 +166,7 @@ final class TradingWorkspaceUITests: XCTestCase {
     reach(app.buttons["submit_perps_order"])
     XCTAssertFalse(app.buttons["submit_perps_order"].isEnabled)
     XCTAssertTrue(app.staticTexts["perps_validation"].label.contains("5 decimal"))
-    for _ in 0..<6 { app.swipeDown() }
+    reach(app.buttons["perps_coin"], scrollingDown: false)
     app.buttons["perps_coin"].tap()
     let search = app.searchFields.firstMatch
     XCTAssertTrue(search.waitForExistence(timeout: 5))
