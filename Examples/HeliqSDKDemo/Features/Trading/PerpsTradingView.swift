@@ -205,6 +205,7 @@ struct PerpsTradingView: View {
         }
       }
       if section == "Trade" {
+        if !coin.isEmpty { Section { StreamingCandleChartView(coin: coin) } }
         ticket
       } else if section == "Positions" {
         positionSections

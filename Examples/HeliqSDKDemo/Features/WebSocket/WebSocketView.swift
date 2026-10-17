@@ -31,7 +31,11 @@ struct WebSocketView: View {
   
   var body: some View {
     List {
-      Section { DemoStatus() }
+      Section {
+        DemoStatus()
+        NavigationLink("Live candle chart") { LiveCandleChartView() }
+          .accessibilityIdentifier("open_live_chart")
+      }
       Section("Connection") {
         HStack {
           Circle()

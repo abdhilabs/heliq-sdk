@@ -19,6 +19,9 @@ settings:
     CODE_SIGNING_ALLOWED: "NO"
 
 packages:
+  LightweightCharts:
+    url: https://github.com/tradingview/LightweightChartsIOS.git
+    exactVersion: 5.2.0
   argent:
     url: https://github.com/argentlabs/web3.swift
     revision: "080ad2d4e9eed79814beb02c71e2b214994616b3"
@@ -118,6 +121,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
     dependencies:
       - target: HeliqSDK
+      - package: LightweightCharts
 
   HeliqSDKDemoUITests:
     type: bundle.ui-testing
