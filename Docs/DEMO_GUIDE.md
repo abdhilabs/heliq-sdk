@@ -93,3 +93,95 @@ No mainnet mutations, funded testnet orders/transfers, account-setting changes,
 or physical-device checks were performed. Existing upstream package warnings remain.
 The controlled test wallet was used only for reads and its temporary simulator copy
 was removed after verification.
+
+## Live candlestick charts
+
+The Perpetuals **Trade** workspace includes a price/volume chart for its selected
+market. The same chart is available at **API Explorer → WebSocket → Live candle
+chart**, with its own metadata-driven market picker. Choose 1m, 15m, 1h, or 1d;
+changing the chart interval preserves the order ticket's inputs.
+
+The demo pins TradingView's official `LightweightChartsIOS` **5.2.0** using the
+`LightweightCharts` product in `project.yml`. Only the demo links it; the SDK's
+Swift package has no chart dependency. Run `xcodegen generate` after changing
+project configuration. JavaScript chart assets are bundled by Swift Package
+Manager; the chart does not fetch a script from a CDN or use TradingView prices.
+
+`CandleChartModel` registers a typed candle handler and subscribes through the SDK
+before querying `PerpsQuery.candles`. Incoming bars are buffered during the HTTP
+snapshot. `CandleBuffer` merges by opening timestamp, lets live values override
+snapshot values, sorts and deduplicates, loads up to 300 historical bars, and
+retains at most 500. Decimals stay exact until rendering; millisecond timestamps
+become UTC seconds at the renderer boundary. Invalid OHLCV values are ignored.
+
+Each visible chart owns a socket using the existing SDK transport, router, and
+subscription manager. Market/interval/connection changes replace that session;
+leaving the chart cancels reads, removes the handler, unsubscribes, and disconnects.
+Transport reconnection re-subscribes and backfills history while retaining the
+visible chart. No background polling or exchange submission is involved.
+
+Connection status, last stream update time, bar/update counts, and an accessible
+OHLCV summary distinguish history from real-time updates. Nearby errors and the
+reload button support manual recovery. Synthetic UI scenarios remain explicitly
+labeled and never contact an exchange. Charts are read-only and need no funding.
+
+TradingView attribution is visible on the chart and linked below it. The full
+Apache 2.0 license is bundled as `TradingView-LICENSE.txt` and available in the
+chart's open-source license disclosure. TradingView Lightweight Charts™:
+Copyright © 2026 TradingView, Inc. See the [official project](https://github.com/tradingview/LightweightChartsIOS)
+and [license requirements](https://tradingview.github.io/lightweight-charts/docs/5.0).
+
+### Chart validation recorded on 2026-10-17
+
+- Demo builds succeeded with iOS 17 minimum; the built SDK framework retains iOS
+  16. macOS SPM compilation and all 426 SDK tests passed with `--no-parallel`.
+  The initial parallel run exposed two shared-logger test races; SDK code was not changed.
+- All seven chart unit tests passed: snapshot/live precedence, duplicate updates,
+  out-of-order bars, reconnect backfill, retention, filtering, stale-session
+  cancellation, and a synthetic live price change.
+- Real testnet verification on iOS 26.5 loaded historical BTC candles and then
+  received a public WebSocket update (301 retained bars in the captured check).
+  No trades, transfers, or account changes were submitted.
+- Compact iPhone SE (3rd generation), iOS 18.6 fixture checks passed for both chart
+  entry points, market/interval selection, tab/back navigation, loading/empty/error
+  states, and manual retry. Screenshots were inspected in light/dark appearance,
+  large text, and landscape. The chart uses a shorter landscape canvas and
+  vertically stacked status labels at accessibility sizes.
+- The temporary compact simulator was removed after verification. The final app
+  was installed on the original simulator, preserving its saved wallet.
+- The six-case compact UI regression batch passed, including the existing order-ticket
+  validation/market search and standard/shared-account transfer controls.
+- Initial checks found and corrected a renderer-ready state reset on tab return
+  and UI-test scrolling/tapping of partially obscured controls. Affected checks
+  were rebuilt and rerun; earlier failed results remain in local evidence.
+- iOS 18.5 simulator launch was blocked by the documented
+  [WebKit runtime loader issue](https://developer.apple.com/forums/thread/785964).
+  Validation used iOS 18.6 instead, with no system-library patches or raised
+  deployment targets. Existing SwiftUI/XCTest diagnostics and the build's
+  AppIntents metadata-extraction warning remain; no new chart-source warnings remain.
+
+Evidence: `/private/tmp/heliq-chart-sdk-tests-serial.log`,
+`/private/tmp/heliq-chart-build-complete.log`,
+`/private/tmp/heliq-chart-selection-final.xcresult`,
+`/private/tmp/heliq-chart-ui-complete.xcresult`,
+`/private/tmp/heliq-chart-live-final.xcresult`,
+`/private/tmp/heliq-chart-dark-final.xcresult`, and
+`/private/tmp/heliq-chart-light-final.xcresult`.
+
+Physical devices and forced live-network reconnection were not checked. Reconnect
+buffer behavior and the existing transport lifecycle are covered by automated
+fixtures. Indicators, drawing tools, and order overlays remain outside this example.
+
+### Mainnet chart verification on 2026-10-17
+
+The opt-in `testLiveMainnetCandles` UI test passed on the iPhone Air iOS 26.5
+simulator. It explicitly initialized Mainnet with the existing read-only mock
+wallet, rendered BTC history (at least 250 bars), received real WebSocket updates,
+switched the standalone chart from 1m to 15m, and verified live candles again in
+the Perpetuals workspace. Both chart entry points reported no chart error.
+Screenshots were captured for all three contexts. No mainnet orders, transfers,
+or account-setting mutations were submitted.
+
+Evidence: `/private/tmp/heliq-chart-mainnet-build.log`,
+`/private/tmp/heliq-chart-mainnet.xcresult`, and
+`/private/tmp/heliq-chart-mainnet-screens/`.
