@@ -260,6 +260,34 @@ xcodebuild test -project HeliqSDK.xcodeproj -scheme HeliqSDKDemo -destination 'p
 
 Project documentation is gathered in [Docs](Docs/README.md).
 
+### GitHub Actions
+
+Builds use standard GitHub-hosted `macos-15` ARM64 runners with Xcode 16.4;
+workflow linting, the public-symbol audit, Pages deployment, and draft release
+creation use `ubuntu-latest`. No self-hosted runner or personal Mac is required.
+Fork PRs can run validation without repository secrets or write permissions.
+
+CI runs on `master`/`develop` pushes and PRs, with manual dispatch available.
+It runs release-mode SDK unit tests serially with coverage, uploads SwiftPM's
+LLVM coverage JSON with file summaries and line segments (omitting verbose
+function/expansion records), and builds the iOS SDK/demo test bundles for ARM64
+without booting a simulator. `swift test` builds the SDK itself; a separate
+duplicate build is unnecessary. No funded or live integration suite is run.
+
+SwiftPM build caches are keyed by toolchain, dependencies, and source content.
+iOS and documentation jobs share an Xcode dependency-download cache. Expensive
+macOS jobs wait for inexpensive lint/audit checks. Superseded CI and PR docs
+runs are cancelled, and documentation-only changes skip CI builds. Documentation
+builds run only when their inputs change. If enabling required status checks,
+account for these workflow path filters: skipped workflows leave required checks
+pending. Standard hosted runners are free for public repositories; private
+repositories use the account's included minutes and billing limits.
+
+Documentation retains the public-symbol audit and deploys Pages only from
+`master`; configure the repository's Pages source as **GitHub Actions**.
+Version tags (`v*`) validate the SDK before creating a draft release, never an
+automatic published release. No Codecov token is needed for coverage artifacts.
+
 ## Typed user data
 
 The `sdk.info` user-state, spot-balance, fill, funding, and order-query methods use
