@@ -21,7 +21,9 @@ let client = try HeliqClient.Builder()
 let mids = try await client.info.getAllMids()
 ```
 
-Read-only queries do not require a wallet. For signed actions, supply a ``WalletServiceProtocol`` with `.wallet(myWallet)` before building the client. Keep private-key custody in your application.
+Read-only queries do not require a wallet. For signed actions, supply a ``WalletServiceProtocol``
+with `.wallet(myWallet)` before building the client. Applications choose external custody or
+the optional <doc:LocalWalletStorage>.
 
 ## Topics
 
@@ -33,6 +35,7 @@ Read-only queries do not require a wallet. For signed actions, supply a ``Wallet
 - <doc:WebSocketSubscriptions>
 - <doc:LoggingAndDiagnostics>
 - <doc:ErrorHandling>
+- <doc:LocalWalletStorage>
 
 ### Protocol coverage
 

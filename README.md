@@ -69,8 +69,9 @@ own environment and wallet configuration.
 
 Supply your application's `myWalletService`, which conforms to
 `WalletServiceProtocol`, or use `WalletService(keyManager:)`. The wallet must
-implement `signL1` and `signUserSigned` for the actions you submit. Keep private-key
-custody in your application.
+implement `signL1` and `signUserSigned` for the actions you submit. For optional
+local custody, see [Keychain wallet storage and its security limitations](Sources/HeliqSDK/HeliqSDK.docc/LocalWalletStorage.md).
+Applications still choose their wallet provider and recovery policy.
 
 ```swift
 let tradingClient = try HeliqClient.Builder()

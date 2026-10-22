@@ -22,7 +22,9 @@ let mids = try await client.info.getAllMids()
 
 ## Add signing for trading
 
-Create a type that conforms to ``WalletServiceProtocol``. Its `address` is the account address. Implement `signL1` and `signUserSigned` for trading, or use the native `WalletService(keyManager:)`. Private-key custody remains the application's responsibility.
+Create a type that conforms to ``WalletServiceProtocol``. Its `address` is the account address.
+Implement `signL1` and `signUserSigned` for trading, or use the native `WalletService(keyManager:)`
+with optional <doc:LocalWalletStorage>. Applications choose custody and recovery policy.
 
 ```swift
 let tradingClient = try HeliqClient.Builder()

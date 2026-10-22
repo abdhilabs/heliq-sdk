@@ -1,6 +1,7 @@
 # Signing boundary
 
-The SDK creates canonical protocol payloads and typed-data envelopes, but wallet custody remains outside the SDK.
+The SDK creates canonical protocol payloads and typed-data envelopes. Applications choose
+external wallet custody or the SDK's optional <doc:LocalWalletStorage>.
 
 ``WalletServiceProtocol`` is the signing seam. Applications implement `signL1(action:nonce:isMainnet:)` and `signUserSigned(primaryType:fields:action:isMainnet:)` through their chosen wallet. The native `WalletService(keyManager:)` implements both. `sign(message:)` alone is insufficient for trading; its protocol defaults throw rather than fabricate a signature.
 

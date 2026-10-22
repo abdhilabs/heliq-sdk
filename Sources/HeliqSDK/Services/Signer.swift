@@ -25,11 +25,17 @@ public struct HyperliquidEIP712Field: Sendable, Codable, Equatable {
 /// Native signer for Hyperliquid L1 actions. User-signed administrative actions
 /// remain explicit until each official EIP-712 schema has a golden fixture.
 public final class Signer: @unchecked Sendable {
-  private let privateKeyData: Data
+  private var privateKeyData: Data
   private let accountAddress: String
 
   /// Creates a signer.
-  public init(privateKey: String) throws {
+  public convenience init(privateKey: String) throws {
+    var data = try Self.decodePrivateKey(privateKey)
+    defer { data.resetBytes(in: 0..<data.count) }
+    try self.init(privateKeyData: data)
+  }
+
+  static func decodePrivateKey(_ privateKey: String) throws -> Data {
     let cleanedKey = privateKey.hasPrefix("0x") ? String(privateKey.dropFirst(2)) : privateKey
     guard
       cleanedKey.utf8.count == 64,
@@ -40,14 +46,24 @@ public final class Signer: @unchecked Sendable {
     else {
       throw SigningError.invalidPrivateKey
     }
+    return keyData
+  }
+
+  init(privateKeyData: Data) throws {
+    guard privateKeyData.count == 32 else { throw SigningError.invalidPrivateKey }
     let publicKey: Data
     do {
-      publicKey = try KeyUtil.generatePublicKey(from: keyData)
+      publicKey = try KeyUtil.generatePublicKey(from: privateKeyData)
     } catch {
       throw SigningError.invalidPrivateKey
     }
-    self.privateKeyData = keyData
+    self.privateKeyData = privateKeyData
     self.accountAddress = KeyUtil.generateAddress(from: publicKey).asString().lowercased()
+  }
+
+  deinit {
+    // Best effort only: Swift Data and the crypto dependency can make unerasable copies.
+    privateKeyData.resetBytes(in: 0..<privateKeyData.count)
   }
 
   /// Legacy arbitrary-message signing is intentionally unsupported because it
