@@ -287,13 +287,9 @@ public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
     return Meta(universe: universe, spotAssetConfigs: configs)
   }
 
-  /// Performs the get time operation.
+  /// Returns the exchange timestamp of the latest BTC order-book snapshot.
   public func getTime() async throws -> Date {
-    let body = InfoRequestBody(type: "getTime", user: nil, coin: nil, interval: nil, startTime: nil, endTime: nil)
-    let data = try JSONCoder.encode(body)
-    let request = InfoAPIRequest(endpoint: .getTime, body: data)
-    let response: TimeResponse = try await apiClient.request(request)
-    return response.date
+    try await getL2Book(coin: "BTC").timestamp
   }
   
   /// Performs the fetch builder fee operation.
@@ -397,14 +393,6 @@ public final class InfoRepositoryImpl: InfoRepository, @unchecked Sendable {
     )]
   }
 
-}
-
-private struct TimeResponse: Decodable {
-  let time: Int
-  
-  var date: Date {
-    Date(timeIntervalSince1970: Double(time) / 1000)
-  }
 }
 
 private struct CandleResponse: Decodable {

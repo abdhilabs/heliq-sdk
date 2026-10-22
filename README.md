@@ -5,7 +5,8 @@ subscriptions on iOS and macOS. Uses Swift 6.1 and async/await.
 
 [API documentation](https://abdhilabs.github.io/heliq-sdk/documentation/heliqsdk/) ·
 [Sample app](Docs/DEMO_GUIDE.md) ·
-[Typed Perps coverage](Docs/PERPS_API_COVERAGE.md)
+[Typed Perps coverage](Docs/PERPS_API_COVERAGE.md) ·
+[Changelog](CHANGELOG.md)
 
 - **Market data and accounts:** prices, order books, candles, positions, fills, and mode-aware balances.
 - **Trading:** typed orders, cancellations, transfers, leverage, margin, and advanced Perps actions.
@@ -25,7 +26,7 @@ Add the package to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/abdhilabs/heliq-sdk.git", branch: "master")
+    .package(url: "https://github.com/abdhilabs/heliq-sdk.git", from: "1.0.0")
 ]
 ```
 
@@ -36,9 +37,9 @@ Add its library product to your target's dependencies:
 ```
 
 In Xcode, choose **File → Add Package Dependencies**, enter
-`https://github.com/abdhilabs/heliq-sdk.git`, select the `master` branch, and add
-**HeliqSDK** to your app target. Use a specific tested commit revision instead of
-tracking `master` when you need reproducible dependency resolution.
+`https://github.com/abdhilabs/heliq-sdk.git`, select version `1.0.0` or later, and add
+**HeliqSDK** to your app target. Commit `Package.resolved` in consuming apps to
+keep dependency resolution reproducible.
 
 ## Quick start
 
@@ -248,7 +249,7 @@ try await ws.subscribe(subscription)
 | `queryUserFundings` | `userFunding` |
 | `getMeta` | `meta` |
 | `getSpotMeta` | `spotMeta` |
-| `getTime` | `getTime` |
+| `getTime` | `l2Book` (BTC snapshot timestamp) |
 | `fetchBuilderFee` | `maxBuilderFee` |
 
 ### Info API — raw transport coverage

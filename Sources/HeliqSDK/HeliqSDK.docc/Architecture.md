@@ -2,7 +2,7 @@
 
 ## Module structure
 
-`HeliqSDK` is the public composition root. ``Builder`` constructs a ``DIContainer``, which wires repositories, raw transport, network clients, cache state, and environment configuration.
+``HeliqClient`` is the public composition root. ``HeliqClient/Builder`` constructs a ``DIContainer``, which wires repositories, raw transport, network clients, cache state, and environment configuration.
 
 ## Repository seam
 
@@ -18,4 +18,4 @@ Asset metadata caching records only coin-to-asset mappings and expires entries b
 
 ## Logging
 
-``Logger`` is configured by ``Builder``. It is global to the SDK process and the latest successful initialization replaces its configured ``LogLevel``.
+``Logger`` is configured by ``HeliqClient/Builder``. It is global to the SDK process and the most recently built client replaces its configured ``LogLevel``.

@@ -4,7 +4,7 @@ SDK operations throw SDK errors for invalid responses, rate limits, decoding fai
 
 ```swift
 do {
-  let mids = try await HeliqSDK.shared.info.getAllMids()
+  let mids = try await client.info.getAllMids()
   print(mids.prices)
 } catch {
   // Surface a user-appropriate message in your application.

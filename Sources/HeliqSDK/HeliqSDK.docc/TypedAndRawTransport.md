@@ -11,7 +11,7 @@ The SDK has distinct typed and raw layers.
 ``HyperliquidAPI`` accepts official request/action parameters and returns lossless ``JSONValue`` responses. It is the extension point for documented protocol features that do not have a typed convenience wrapper.
 
 ```swift
-let response = try await HeliqSDK.shared.raw.info(
+let response = try await client.raw.info(
   .init(type: .openOrders, parameters: ["user": .string("0x...")])
 )
 ```

@@ -9,18 +9,19 @@ A Swift SDK for Hyperliquid market data, exchange actions, raw protocol transpor
 - Typed convenience repositories for common market-data and exchange workflows.
 - ``HyperliquidAPI`` raw transport for documented Info and Exchange requests not yet represented by a typed wrapper.
 
-Initialize the shared SDK once before accessing ``HeliqSDK/info``, ``HeliqSDK/exchange``, or ``HeliqSDK/raw``.
+Create a ``HeliqClient`` before accessing its ``HeliqClient/info``, ``HeliqClient/exchange``, or ``HeliqClient/raw`` interfaces.
 
 ```swift
-HeliqSDK.shared.initialize { builder in
-  builder
-    .environment(.mainnet)
-    .wallet(myWallet)
-    .logging(.verbose)
-}
+import HeliqSDK
+
+let client = try HeliqClient.Builder()
+  .environment(.testnet)
+  .build()
+
+let mids = try await client.info.getAllMids()
 ```
 
-> Important: A wallet is required during initialization. Keep private keys outside the SDK; implement ``WalletServiceProtocol`` using your own secure signer.
+Read-only queries do not require a wallet. For signed actions, supply a ``WalletServiceProtocol`` with `.wallet(myWallet)` before building the client. Keep private-key custody in your application.
 
 ## Topics
 

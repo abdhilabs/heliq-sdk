@@ -19,24 +19,16 @@ struct InfoIntegrationTests {
 
   // MARK: - Market data
 
-  @Test func testIntegration_getAllMids_returnsOrSurfacesModelMismatch() async throws {
+  @Test func testIntegration_getAllMids_returnsLiveData() async throws {
     let repo = makeRepo()
-    do {
-      let result = try await repo.getAllMids()
-      #expect(result.prices.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await repo.getAllMids()
+    #expect(!result.prices.isEmpty)
   }
 
-  @Test func testIntegration_getL2Book_BTC_returnsOrSurfacesModelMismatch() async throws {
+  @Test func testIntegration_getL2Book_BTC_returnsLiveData() async throws {
     let repo = makeRepo()
-    do {
-      let result = try await repo.getL2Book(coin: "BTC")
-      #expect(result.levels.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await repo.getL2Book(coin: "BTC")
+    #expect(!result.levels.isEmpty)
   }
 
   @Test func testIntegration_getCandleSnapshot_BTC_1m() async throws {
@@ -49,22 +41,14 @@ struct InfoIntegrationTests {
 
   @Test func testIntegration_getAssetCtxs() async throws {
     let repo = makeRepo()
-    do {
-      let result = try await repo.getAssetCtxs()
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await repo.getAssetCtxs()
+    #expect(!result.isEmpty)
   }
 
   @Test func testIntegration_getSpotAssetCtxs() async throws {
     let repo = makeRepo()
-    do {
-      let result = try await repo.getSpotAssetCtxs()
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await repo.getSpotAssetCtxs()
+    #expect(!result.isEmpty)
   }
 
   // MARK: - Metadata
@@ -83,12 +67,8 @@ struct InfoIntegrationTests {
 
   @Test func testIntegration_getTime() async throws {
     let repo = makeRepo()
-    do {
-      let result = try await repo.getTime()
-      #expect(result.timeIntervalSince1970 > 1_600_000_000)
-    } catch {
-      #expect(error is APIError || error is NetworkError || error is DecodingError)
-    }
+    let result = try await repo.getTime()
+    #expect(abs(result.timeIntervalSinceNow) < 300)
   }
 
   @Test func testIntegration_fetchBuilderFee() async throws {
