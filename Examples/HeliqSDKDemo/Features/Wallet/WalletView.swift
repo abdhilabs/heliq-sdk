@@ -19,6 +19,7 @@ struct WalletView: View {
   
   var body: some View {
     List {
+      Section { DemoStatus() }
       Section("Wallet Address") {
         if let address = sdkManager.walletAddress {
           VStack(alignment: .leading, spacing: 8) {
@@ -26,6 +27,7 @@ struct WalletView: View {
               .font(.caption)
               .foregroundStyle(.secondary)
             Text(address)
+              .accessibilityIdentifier("connected_wallet_address")
               .font(.system(.body, design: .monospaced))
               .textSelection(.enabled)
           }
@@ -64,8 +66,10 @@ struct WalletView: View {
         .padding(.vertical, 4)
       }
       
-      Section("Signing Demo") {
-        TextField("Message to Sign", text: $messageToSign)
+      Section("Mock signing example") {
+        Text("Demonstrates the signature response shape using a mock wallet; it does not sign with your connected wallet.")
+          .font(.caption).foregroundStyle(.secondary)
+        DemoTextField("Message to Sign", text: $messageToSign)
           .textInputAutocapitalization(.never)
         
         Button {
@@ -79,7 +83,7 @@ struct WalletView: View {
             Text("Sign Message")
           }
         }
-        .disabled(messageToSign.isEmpty || sdkManager.walletAddress == nil)
+        .disabled(isSigning || messageToSign.isEmpty || sdkManager.walletAddress == nil)
       }
       
       if let signature = signatureResult {
@@ -123,7 +127,9 @@ struct WalletView: View {
         }
       }
       
-      Section("Key Manager") {
+      Section("Key manager examples") {
+        Text("Illustrative creation options. This sample uses the persistent wallet initialized in Settings.")
+          .font(.subheadline).foregroundStyle(.secondary)
         VStack(alignment: .leading, spacing: 8) {
           Text("Direct Private Key")
             .font(.headline)
@@ -132,9 +138,10 @@ struct WalletView: View {
             .foregroundStyle(.secondary)
           
           Button("Create from Private Key") {
-            // Demo implementation
+            // Wallet creation is documented here; this sample uses the saved testnet wallet.
           }
           .buttonStyle(.bordered)
+          .disabled(true)
         }
         .padding(.vertical, 4)
         
@@ -146,9 +153,10 @@ struct WalletView: View {
             .foregroundStyle(.secondary)
           
           Button("Create from Keychain") {
-            // Demo implementation
+            // Wallet creation is documented here; this sample uses the saved testnet wallet.
           }
           .buttonStyle(.bordered)
+          .disabled(true)
         }
         .padding(.vertical, 4)
         
@@ -160,9 +168,10 @@ struct WalletView: View {
             .foregroundStyle(.secondary)
           
           Button("Create Agent Wallet") {
-            // Demo implementation
+            // Wallet creation is documented here; this sample uses the saved testnet wallet.
           }
           .buttonStyle(.bordered)
+          .disabled(true)
         }
         .padding(.vertical, 4)
       }
@@ -186,9 +195,12 @@ struct WalletView: View {
       }
     }
     .navigationTitle("Wallet")
+    .demoForm()
   }
   
+  /// Runs the mock signing example once without accessing private wallet material.
   private func signMessage() async {
+    guard !isSigning else { return }
     isSigning = true
     errorMessage = nil
     signatureResult = nil

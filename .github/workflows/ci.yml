@@ -2,30 +2,124 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop]
+    paths-ignore: ['**/*.md', 'Docs/**', 'LICENSE', '.gitignore']
   pull_request:
-    branches: [main, develop]
+    branches: [master, develop]
+    paths-ignore: ['**/*.md', 'Docs/**', 'LICENSE', '.gitignore']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
 
 jobs:
+  lint:
+    name: Workflow Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker://rhysd/actionlint:1.7.12
+
   build-and-test:
     name: Build and Test
-    strategy:
-      matrix:
-        platform: [macos-latest]
-        swift-version: ["6.0"]
-    runs-on: ${{ matrix.platform }}
+    needs: lint
+    runs-on: macos-15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode.app
+      - name: Cache SwiftPM build
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode16.4-spm-coverage-${{ hashFiles('Package.swift', 'Package.resolved') }}-${{ hashFiles('Sources/**', 'Tests/**') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-xcode16.4-spm-coverage-${{ hashFiles('Package.swift', 'Package.resolved') }}-
 
-      - name: Build
+      - name: Run unit tests with coverage (no live integration tests)
         run: |
-          swift build --configuration release
+          swift test --configuration release --enable-code-coverage --no-parallel --filter HeliqSDKTests
 
-      - name: Run unit tests (skip integration tests)
+      - name: Export coverage
         run: |
-          swift test --configuration release --filter HeliqSDKTests
+          mkdir -p coverage
+          coverage_path="$(swift test --configuration release --show-codecov-path)"
+          python3 - "$coverage_path" > coverage/coverage.json <<'PY'
+          import json, sys
+          with open(sys.argv[1]) as source:
+              coverage = json.load(source)
+          for entry in coverage['data']:
+              entry.pop('functions', None)
+              for file in entry['files']:
+                  file.pop('expansions', None)
+          json.dump(coverage, sys.stdout, separators=(',', ':'))
+          PY
+          # Keep file/line coverage, but do not cache raw profiles or the full export.
+          rm -rf "$(dirname "$coverage_path")"
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/coverage.json
+          if-no-files-found: error
+          retention-days: 14
+
+  ios:
+    name: iOS SDK and Demo Build
+    needs: lint
+    runs-on: macos-26
+    timeout-minutes: 30
+    env:
+      # Swift 6.1 crashes compiling LightweightCharts; keep SDK compatibility tests on 16.4.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate Xcode project
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate --spec project.yml
+
+      - name: Cache Xcode packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/heliq-xcode-packages
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode26.6-packages-${{ hashFiles('project.yml', 'Package.resolved') }}
+
+      - name: Build iOS SDK and unit tests
+        run: |
+          xcodebuild build-for-testing \
+            -project HeliqSDK.xcodeproj -scheme HeliqSDK \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/heliq-ci-ios" \
+            -clonedSourcePackagesDirPath "$HOME/.cache/heliq-xcode-packages" \
+            CODE_SIGNING_ALLOWED=NO ARCHS=arm64
+
+      - name: Build demo and its test bundles
+        run: |
+          xcodebuild build-for-testing \
+            -project HeliqSDK.xcodeproj -scheme HeliqSDKDemo \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/heliq-ci-ios" \
+            -clonedSourcePackagesDirPath "$HOME/.cache/heliq-xcode-packages" \
+            CODE_SIGNING_ALLOWED=NO ARCHS=arm64

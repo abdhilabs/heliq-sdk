@@ -7,6 +7,7 @@
 
 import Foundation
 
+/// Provides web socket reconnection handler functionality.
 public final class WebSocketReconnectionHandler: @unchecked Sendable {
   private var consecutiveFailures: Int = 0
   private let maxFailures: Int = 5
@@ -15,8 +16,10 @@ public final class WebSocketReconnectionHandler: @unchecked Sendable {
   private let multiplier: Double = 2.0
   private let queue = DispatchQueue(label: "com.heliqsdk.reconnection")
   
+  /// Creates a web socket reconnection handler.
   public init() {}
   
+  /// Performs the should reconnect operation.
   public func shouldReconnect() async -> Bool {
     await withCheckedContinuation { continuation in
       queue.async {
@@ -26,6 +29,7 @@ public final class WebSocketReconnectionHandler: @unchecked Sendable {
     }
   }
   
+  /// Performs the record failure operation.
   public func recordFailure() async {
     await withCheckedContinuation { continuation in
       queue.async {
@@ -35,6 +39,7 @@ public final class WebSocketReconnectionHandler: @unchecked Sendable {
     }
   }
   
+  /// Performs the record success operation.
   public func recordSuccess() async {
     await withCheckedContinuation { continuation in
       queue.async {
@@ -44,6 +49,7 @@ public final class WebSocketReconnectionHandler: @unchecked Sendable {
     }
   }
   
+  /// Performs the schedule reconnect operation.
   public func scheduleReconnect() async {
     let failures = await withCheckedContinuation { continuation in
       queue.async {
@@ -56,6 +62,7 @@ public final class WebSocketReconnectionHandler: @unchecked Sendable {
     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
   }
   
+  /// Performs the reset operation.
   public func reset() async {
     await withCheckedContinuation { continuation in
       queue.async {

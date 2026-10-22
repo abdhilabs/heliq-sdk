@@ -119,3 +119,6 @@ Package.resolved
 
 # Dependency checkouts (if using .package resolved workaround)
 Carthage/
+
+# Local testnet signing material
+.local/

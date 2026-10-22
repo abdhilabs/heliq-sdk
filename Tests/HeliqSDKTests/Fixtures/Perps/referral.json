@@ -1,0 +1,1 @@
+{"referredBy":{"referrer":"0x1234567890123456789012345678901234567890","code":"FIXTURE"},"cumVlm":"100","unclaimedRewards":"1","claimedRewards":"0","builderRewards":"0","tokenToState":[[0,{"cumVlm":"100","unclaimedRewards":"1","claimedRewards":"0","builderRewards":"0"}]],"referrerState":{"stage":"ready","data":{"code":"FIXTURE","referralStates":[]}},"rewardHistory":[]}

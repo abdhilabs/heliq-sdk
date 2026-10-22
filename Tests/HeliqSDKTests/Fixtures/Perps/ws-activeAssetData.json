@@ -1,0 +1,1 @@
+{"channel":"activeAssetData","data":{"user":"0x1234567890123456789012345678901234567890","coin":"BTC","leverage":{"type":"cross","value":2},"maxTradeSzs":["1","2"],"availableToTrade":["90","80"],"markPx":"50000"}}

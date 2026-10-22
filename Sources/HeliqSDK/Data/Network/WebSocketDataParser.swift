@@ -7,25 +7,42 @@
 
 import Foundation
 
+/// Defines web socket data type values.
 public enum WebSocketDataType: Sendable {
+  /// The `allMids` option.
   case allMids(AllMids)
+  /// The `l2Book` option.
   case l2Book(L2Book)
+  /// The `trades` option.
   case trades([Trade])
+  /// The `userFill` option.
   case userFill(Fill)
+  /// The `userEvent` option.
   case userEvent(UserEvent)
+  /// The `candle` option.
   case candle(Candle)
+  /// The `orderUpdate` option.
   case orderUpdate(Order)
+  /// The `userFunding` option.
   case userFunding(UserFunding)
+  /// The `unknown` option.
   case unknown
 }
 
+/// Represents trade data.
 public struct Trade: Sendable, Codable {
+  /// The price.
   public let price: Double
+  /// The size.
   public let size: Double
+  /// The side.
   public let side: OrderSide
+  /// The timestamp.
   public let timestamp: Date
+  /// The hash.
   public let hash: String?
   
+  /// Creates a trade.
   public init(price: Double, size: Double, side: OrderSide, timestamp: Date, hash: String? = nil) {
     self.price = price
     self.size = size
@@ -35,20 +52,32 @@ public struct Trade: Sendable, Codable {
   }
 }
 
+/// Defines user event type values.
 public enum UserEventType: String, Sendable, Codable {
+  /// The `orderPlaced` option.
   case orderPlaced = "orderPlaced"
+  /// The `orderFilled` option.
   case orderFilled = "orderFilled"
+  /// The `orderCancelled` option.
   case orderCancelled = "orderCancelled"
+  /// The `orderUpdated` option.
   case orderUpdated = "orderUpdated"
 }
 
+/// Represents user event data.
 public struct UserEvent: Sendable, Codable {
+  /// The type.
   public let type: UserEventType
+  /// The order id.
   public let orderId: String?
+  /// The cloid.
   public let cloid: String?
+  /// The filled size.
   public let filledSize: Double?
+  /// The filled px.
   public let filledPx: Double?
   
+  /// Creates a user event.
   public init(type: UserEventType, orderId: String? = nil, cloid: String? = nil, filledSize: Double? = nil, filledPx: Double? = nil) {
     self.type = type
     self.orderId = orderId
@@ -58,9 +87,12 @@ public struct UserEvent: Sendable, Codable {
   }
 }
 
+/// Provides web socket data parser functionality.
 public final class WebSocketDataParser {
+  /// Creates a web socket data parser.
   public init() {}
   
+  /// Performs the parse operation.
   public func parse(channel: String, data: Data) throws -> WebSocketDataType {
     guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
       throw ValidationError.malformedData(reason: "Invalid JSON for channel \(channel)")

@@ -99,6 +99,38 @@ struct TransactionBuilderTests {
     }
   }
   
+  @Test func buildOrderTransactionRejectsMissingLimitPrice() throws {
+    let order = OrderRequest(
+      asset: 0,
+      side: .buy,
+      orderType: .limit,
+      size: 1,
+      price: nil,
+      reduceOnly: false,
+      cloid: nil
+    )
+
+    #expect(throws: ValidationError.self) {
+      _ = try TransactionBuilder().buildOrderTransaction(order: order)
+    }
+  }
+
+  @Test func buildOrderTransactionRejectsNonPositiveSize() throws {
+    let order = OrderRequest(
+      asset: 0,
+      side: .buy,
+      orderType: .market,
+      size: 0,
+      price: nil,
+      reduceOnly: false,
+      cloid: nil
+    )
+
+    #expect(throws: ValidationError.self) {
+      _ = try TransactionBuilder().buildOrderTransaction(order: order)
+    }
+  }
+
   @Test func testBuildCancelTransaction_createsCorrectDictionary() throws {
     let builder = TransactionBuilder()
     
@@ -189,7 +221,8 @@ struct WalletServiceTests {
     
     let walletService = try await WalletService(keyManager: keyManager)
     
-    #expect(walletService.address.count == 64)
+    #expect(walletService.address.count == 42)
+    #expect(walletService.address.hasPrefix("0x"))
   }
   
   @Test func testWalletService_init_whenKeyManagerThrows_throwsError() async throws {
@@ -229,7 +262,8 @@ struct KeyManagerTests {
     
     let address = try await keyManager.getAddress()
     
-    #expect(address.count == 64)
+    #expect(address.count == 42)
+    #expect(address.hasPrefix("0x"))
   }
   
   @Test func testKeyManager_initWithPrivateKey_invalidKey_throws() throws {

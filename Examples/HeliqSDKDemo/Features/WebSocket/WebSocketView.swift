@@ -31,6 +31,11 @@ struct WebSocketView: View {
   
   var body: some View {
     List {
+      Section {
+        DemoStatus()
+        NavigationLink("Live candle chart") { LiveCandleChartView() }
+          .accessibilityIdentifier("open_live_chart")
+      }
       Section("Connection") {
         HStack {
           Circle()
@@ -65,7 +70,7 @@ struct WebSocketView: View {
         .pickerStyle(.menu)
         
         if selectedChannel.requiresCoin {
-          TextField("Coin", text: $customCoin)
+          DemoTextField("Coin", text: $customCoin)
             .textInputAutocapitalization(.characters)
         }
         
@@ -129,12 +134,14 @@ struct WebSocketView: View {
       }
     }
     .navigationTitle("WebSocket")
+    .demoForm()
     .onReceive(webSocketManager.$state) { state in
       connectionState = mapState(state)
     }
     .onReceive(webSocketManager.$subscriptions) { subs in
       activeSubscriptions = subs
     }
+    .onDisappear { disconnect() }
     .onReceive(webSocketManager.$messages) { newMessages in
       messages.append(contentsOf: newMessages.prefix(maxMessages - messages.count))
     }
@@ -258,9 +265,11 @@ struct MessageRow: View {
           .font(.caption2)
           .foregroundStyle(.secondary)
       }
+      DisclosureGroup("Payload") {
       Text(message.data)
         .font(.system(.caption2, design: .monospaced))
-        .lineLimit(3)
+        .textSelection(.enabled)
+      }
     }
     .padding(.vertical, 2)
   }
@@ -296,79 +305,87 @@ class WebSocketManager: ObservableObject, @unchecked Sendable {
     let wsURLString = Constants.WebSocket.url(for: sdkManager.currentEnvironment)
     guard let url = URL(string: wsURLString) else { return }
     
-    let service = WebSocketService(url: url)
-    service.webSocketDelegate = self
-    self.webSocketService = service
+    let service = WebSocketService(url: url) { [weak self] event in
+      Task { @MainActor [weak self] in
+        self?.handle(event)
+      }
+    }
+    webSocketService = service
   }
   
   func connect() {
     state = .connecting
-    webSocketService?.connect()
+    Task {
+      await webSocketService?.connect()
+    }
   }
   
   func disconnect() {
-    webSocketService?.disconnect()
+    Task {
+      await webSocketService?.disconnect()
+    }
     state = .disconnected
     subscriptions.removeAll()
   }
   
   func subscribe(to channel: SubscriptionChannel) {
     guard !subscriptions.contains(channel) else { return }
-    do {
-      try webSocketService?.subscribe(channel: channel.channelName, payload: channel.payload)
-      subscriptions.append(channel)
-    } catch {
-      // Handle error
+
+    Task {
+      do {
+        try await webSocketService?.subscribe(
+          channel: channel.channelName,
+          payload: channel.payload
+        )
+        subscriptions.append(channel)
+      } catch {
+        state = .disconnected
+      }
     }
   }
   
   func unsubscribe(from channel: SubscriptionChannel) {
     guard subscriptions.contains(channel) else { return }
-    do {
-      try webSocketService?.unsubscribe(channel: channel.channelName)
-      subscriptions.removeAll { $0 == channel }
-    } catch {
-      // Handle error
+
+    Task {
+      do {
+        try await webSocketService?.unsubscribe(
+          channel: channel.channelName,
+          payload: channel.payload
+        )
+        subscriptions.removeAll { $0 == channel }
+      } catch {
+        state = .disconnected
+      }
     }
   }
   
   func unsubscribeAll() {
-    for channel in subscriptions {
-      do {
-        try webSocketService?.unsubscribe(channel: channel.channelName)
-      } catch {
-        // Handle error
+    let channels = subscriptions
+    Task {
+      for channel in channels {
+        try? await webSocketService?.unsubscribe(
+          channel: channel.channelName,
+          payload: channel.payload
+        )
       }
+      subscriptions.removeAll()
     }
-    subscriptions.removeAll()
   }
-}
 
-extension WebSocketManager: WebSocketServiceDelegate {
-  nonisolated func webSocketDidConnect() {
-    Task { @MainActor in
-      state = .connected
-    }
-  }
-  
-  nonisolated func webSocketDidDisconnect(error: Error?) {
-    Task { @MainActor in
+  private func handle(_ event: WebSocketEvent) {
+    switch event {
+    case .stateChanged(let webSocketState):
+      state = webSocketState
+    case .message(let data):
+      parseMessage(data)
+    case .failed:
+      break
+    @unknown default:
       state = .disconnected
     }
   }
-  
-  nonisolated func webSocketDidReceiveMessage(_ message: Data) {
-    Task { @MainActor in
-      parseMessage(message)
-    }
-  }
-  
-  nonisolated func webSocketDidReceiveError(_ error: Error) {
-    Task { @MainActor in
-      // Handle error
-    }
-  }
-  
+
   private func parseMessage(_ data: Data) {
     guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
       return

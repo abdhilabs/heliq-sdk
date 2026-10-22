@@ -41,7 +41,7 @@ struct SettingsView: View {
           
           if let address = sdkManager.walletAddress {
             HStack {
-              Text("Wallet")
+              Text("Signing wallet")
               Spacer()
               Text("\(address.prefix(10))...")
                 .foregroundStyle(.secondary)
@@ -50,7 +50,7 @@ struct SettingsView: View {
         }
       }
       
-      Section("Environment") {
+      Section("Selected environment") {
         ForEach([HeliqEnvironment.mainnet, .testnet, .local], id: \.self) { env in
           Button {
             selectedEnvironment = env
@@ -71,9 +71,20 @@ struct SettingsView: View {
             }
           }
           .buttonStyle(.plain)
+          .accessibilityIdentifier("environment_" + environmentName(env).lowercased())
+          .disabled(isInitializing)
         }
       }
       
+      Section {
+        Text(sdkManager.isInitialized
+          ? "Connected to \(environmentName(sdkManager.currentEnvironment)). Disconnect before applying a different environment."
+          : "Choose an environment, then initialize. Testnet uses the saved test wallet; other environments use a read-only mock.")
+          .font(.subheadline).foregroundStyle(.secondary)
+        if sdkManager.isInitialized {
+          LabeledContent("Wallet type", value: sdkManager.currentEnvironment == .testnet ? "Persistent testnet wallet" : "Read-only mock")
+        }
+      }
       Section("Initialize SDK") {
         Button {
           Task { await initializeSDK() }
@@ -88,6 +99,7 @@ struct SettingsView: View {
         }
         .disabled(isInitializing || sdkManager.isInitialized)
         .foregroundStyle(sdkManager.isInitialized ? .secondary : .primary)
+        .accessibilityIdentifier("initialize_sdk")
       }
       
       if sdkManager.isInitialized {
@@ -115,7 +127,7 @@ struct SettingsView: View {
         }
         
         LabeledContent("Swift Version") {
-          Text("6.0")
+          Text("6.1 tools · Swift 6 mode")
             .foregroundStyle(.secondary)
         }
       }
@@ -155,11 +167,13 @@ struct SettingsView: View {
       if let error = errorMessage {
         Section("Error") {
           Text(error)
+            .accessibilityIdentifier("settings_error")
             .foregroundStyle(.red)
         }
       }
     }
     .navigationTitle("Settings")
+    .demoForm()
     .alert("SDK Initialized", isPresented: $showInitSuccess) {
       Button("OK", role: .cancel) {}
     } message: {
@@ -203,7 +217,7 @@ struct SettingsView: View {
     } catch {
       await MainActor.run {
         isInitializing = false
-        errorMessage = error.localizedDescription
+        errorMessage = (error as? any HeliqError)?.errorDescription ?? error.localizedDescription
       }
     }
   }

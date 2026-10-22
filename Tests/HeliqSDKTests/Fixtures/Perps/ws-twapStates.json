@@ -1,0 +1,1 @@
+{"channel":"twapStates","data":{"user":"0x1234567890123456789012345678901234567890","dex":"","states":[[1,{"coin":"BTC","user":"0x1234567890123456789012345678901234567890","side":"B","sz":"0.001","executedSz":"0","executedNtl":"0","minutes":5,"reduceOnly":false,"randomize":false,"timestamp":1700000000123}]]}}

@@ -18,12 +18,16 @@ final class SDKManager: @unchecked Sendable {
   private(set) var initializationError: String?
   private(set) var walletAddress: String?
   
-  private var mockWallet: MockWalletService?
+  private var wallet: (any WalletServiceProtocol)?
   
   private init() {}
   
-  var sdk: HeliqSDK {
-    HeliqSDK.shared
+  private(set) var client: HeliqClient?
+  var sdk: HeliqClient {
+    guard let client else {
+      preconditionFailure("Initialize the demo client before accessing SDK services.")
+    }
+    return client
   }
   
   @MainActor
@@ -31,21 +35,30 @@ final class SDKManager: @unchecked Sendable {
     initializationError = nil
     currentEnvironment = environment
     
-    let wallet = MockWalletService()
-    mockWallet = wallet
-    walletAddress = wallet.address
-    
-    HeliqSDK.shared.initialize { builder in
-      builder.environment(environment)
-      builder.wallet(wallet)
+    let signingWallet: any WalletServiceProtocol
+    if environment == .testnet {
+      let privateKey = try TestnetWalletStore.privateKey(
+        fresh: ProcessInfo.processInfo.arguments.contains("-fresh-testnet-wallet")
+      )
+      signingWallet = try await WalletService(keyManager: KeyManager(privateKey: privateKey))
+    } else {
+      signingWallet = MockWalletService()
     }
-    self.isInitialized = true
+    wallet = signingWallet
+    walletAddress = signingWallet.address
+    
+    client = try HeliqClient.Builder()
+      .environment(environment)
+      .wallet(signingWallet)
+      .build()
+    isInitialized = true
   }
   
   @MainActor
   func disconnect() {
     isInitialized = false
-    mockWallet = nil
+    client = nil
+    wallet = nil
     walletAddress = nil
     initializationError = nil
   }

@@ -6,66 +6,59 @@
 //
 
 import Foundation
-import OSLog
 
+/// Defines requirements for logging plugin protocol implementations.
 public protocol LoggingPluginProtocol: Sendable {
+  /// Performs the log operation.
   func log(request: URLRequest)
+  /// Performs the log operation.
   func log(response: URLResponse, data: Data?, error: Error?)
+  /// Performs the log operation.
   func log(message: String, level: LogLevel)
 }
 
+/// Provides logging plugin functionality.
 public final class LoggingPlugin: LoggingPluginProtocol, @unchecked Sendable {
   private let logger: Logger
   private let category: LogCategory
-  
+
+  /// Creates a logging plugin.
   public init(logger: Logger = .shared, category: LogCategory = .network) {
     self.logger = logger
     self.category = category
   }
-  
+
+  /// Performs the log operation.
   public func log(request: URLRequest) {
-    let message = """
-        [REQUEST] \(request.httpMethod ?? "UNKNOWN") \(request.url?.absoluteString ?? "unknown")
-        Headers: \(request.allHTTPHeaderFields?.description ?? "none")
-        """
-    
-    switch request.httpMethod {
-    case "GET":
-      logger.debug(message, category: category)
-    default:
-      logger.info(message, category: category)
-    }
+    let message = "request method=\(request.httpMethod ?? "UNKNOWN") path=\(request.url?.path ?? "unknown")"
+    logger.info(message, category: category)
   }
-  
+
+  /// Performs the log operation.
   public func log(response: URLResponse, data: Data?, error: Error?) {
-    if let error = error {
-      logger.error("[\(category.rawValue)] \(error.localizedDescription)", category: category)
+    if error != nil {
+      logger.error("response outcome=failure", category: category)
       return
     }
-    
+
     guard let httpResponse = response as? HTTPURLResponse else { return }
-    
-    let message = """
-        [RESPONSE] \(httpResponse.statusCode) \(httpResponse.url?.absoluteString ?? "unknown")
-        """
-    
+    let message = "response status=\(httpResponse.statusCode) path=\(httpResponse.url?.path ?? "unknown") bytes=\(data?.count ?? 0)"
+
     if (200...299).contains(httpResponse.statusCode) {
-      logger.debug(message, category: category)
+      logger.info(message, category: category)
     } else {
-      logger.warn(message, category: category)
+      logger.warning(message, category: category)
     }
   }
-  
+
+  /// Performs the log operation.
   public func log(message: String, level: LogLevel) {
-    switch level {
-    case .debug:
-      logger.debug(message, category: category)
-    case .info:
-      logger.info(message, category: category)
-    case .warn:
-      logger.warn(message, category: category)
-    case .error:
+    if level.contains(.error) {
       logger.error(message, category: category)
+    } else if level.contains(.warning) {
+      logger.warning(message, category: category)
+    } else if level.contains(.info) {
+      logger.info(message, category: category)
     }
   }
 }

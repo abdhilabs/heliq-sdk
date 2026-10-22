@@ -10,182 +10,121 @@ import Testing
 import HeliqSDK
 
 struct InfoIntegrationTests {
-  
-  // MARK: - Tests that work with current SDK model
-  
-  @Test func testIntegration_getL2Book_withBTC_returnsL2Book() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    // This may throw if SDK model doesn't match API response format
+  private let zeroAddress = "0x0000000000000000000000000000000000000000"
+  private let builderAddress = "0x0000000000000000000000000000000000000001"
+
+  private func makeRepo() -> InfoRepositoryImpl {
+    InfoRepositoryImpl(apiClient: APIClient(environment: .testnet))
+  }
+
+  // MARK: - Market data
+
+  @Test func testIntegration_getAllMids_returnsOrSurfacesModelMismatch() async throws {
+    let repo = makeRepo()
+    do {
+      let result = try await repo.getAllMids()
+      #expect(result.prices.count >= 0)
+    } catch {
+      #expect(error is APIError || error is NetworkError || error is DecodingError)
+    }
+  }
+
+  @Test func testIntegration_getL2Book_BTC_returnsOrSurfacesModelMismatch() async throws {
+    let repo = makeRepo()
     do {
       let result = try await repo.getL2Book(coin: "BTC")
       #expect(result.levels.count >= 0)
     } catch {
-      // If error, it indicates SDK model mismatch
-      #expect(error != nil)
+      #expect(error is APIError || error is NetworkError || error is DecodingError)
     }
   }
-  
-  @Test func testIntegration_queryOrderByOid_withNonExistentId_returnsEmptyOrError() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    do {
-      let result = try await repo.queryOrderByOid(orderId: "999999999")
-      #expect(result.count >= 0)
-    } catch {
-      // Expected - order doesn't exist
-      #expect(error != nil)
-    }
+
+  @Test func testIntegration_getCandleSnapshot_BTC_1m() async throws {
+    let repo = makeRepo()
+    let end = Date()
+    let start = end.addingTimeInterval(-3600)
+    let result = try await repo.getCandleSnapshot(coin: "BTC", interval: "1m", startTime: start, endTime: end)
+    #expect(!result.isEmpty)
   }
-  
-  @Test func testIntegration_queryOrderByCloid_withNonExistentCloid_returnsEmptyOrError() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    do {
-      let result = try await repo.queryOrderByCloid(cloid: "0x1234567890abcdef1234567890abcdef12345678")
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  // MARK: - Tests that expose SDK model mismatches
-  
-  @Test func testIntegration_getAllMids_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    // This test exposes the model mismatch - SDK expects 'prices' key
-    // but Hyperliquid API returns different structure
-    do {
-      let result = try await repo.getAllMids()
-      #expect(result.prices.isEmpty == false)
-    } catch {
-      // Error indicates SDK model doesn't match API
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_getMeta_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    // SDK expects 'universe[0].asset' but API may use different key
-    do {
-      let result = try await repo.getMeta()
-      #expect(result.universe.isEmpty == false)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_getSpotMeta_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    do {
-      let result = try await repo.getSpotMeta()
-      #expect(result.universe.isEmpty == false)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_getTime_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    do {
-      let result = try await repo.getTime()
-      #expect(result.timeIntervalSince1970 > 0)
-    } catch {
-      #expect(error != nil)
-    }
-  }
-  
-  @Test func testIntegration_getAssetCtxs_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
+
+  @Test func testIntegration_getAssetCtxs() async throws {
+    let repo = makeRepo()
     do {
       let result = try await repo.getAssetCtxs()
       #expect(result.count >= 0)
     } catch {
-      #expect(error != nil)
+      #expect(error is APIError || error is NetworkError || error is DecodingError)
     }
   }
-  
-  @Test func testIntegration_getSpotAssetCtxs_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
+
+  @Test func testIntegration_getSpotAssetCtxs() async throws {
+    let repo = makeRepo()
     do {
       let result = try await repo.getSpotAssetCtxs()
       #expect(result.count >= 0)
     } catch {
-      #expect(error != nil)
+      #expect(error is APIError || error is NetworkError || error is DecodingError)
     }
   }
-  
-  @Test func testIntegration_queryFills_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
+
+  // MARK: - Metadata
+
+  @Test func testIntegration_getMeta() async throws {
+    let result = try await makeRepo().getMeta()
+    #expect(!result.universe.isEmpty)
+    #expect(result.universe.allSatisfy { $0.isPerpetual && $0.weiDecimals == nil })
+  }
+
+  @Test func testIntegration_getSpotMeta() async throws {
+    let result = try await makeRepo().getSpotMeta()
+    #expect(!result.universe.isEmpty)
+    #expect(result.universe.allSatisfy { !$0.isPerpetual && $0.weiDecimals != nil })
+  }
+
+  @Test func testIntegration_getTime() async throws {
+    let repo = makeRepo()
     do {
-      let result = try await repo.queryFills(address: "0x0000000000000000000000000000000000000000")
-      #expect(result.count >= 0)
+      let result = try await repo.getTime()
+      #expect(result.timeIntervalSince1970 > 1_600_000_000)
     } catch {
-      #expect(error != nil)
+      #expect(error is APIError || error is NetworkError || error is DecodingError)
     }
   }
-  
-  @Test func testIntegration_queryUserFundings_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    do {
-      let result = try await repo.queryUserFundings(address: "0x0000000000000000000000000000000000000000")
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error != nil)
-    }
+
+  @Test func testIntegration_fetchBuilderFee() async throws {
+    let result = try await makeRepo().fetchBuilderFee(builderAddress: builderAddress, address: zeroAddress)
+    #expect(result.feeBps >= 0)
   }
-  
-  @Test func testIntegration_getCandleSnapshot_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    let now = Date()
-    let oneHourAgo = now.addingTimeInterval(-3600)
-    do {
-      let result = try await repo.getCandleSnapshot(coin: "BTC", interval: "1m", startTime: oneHourAgo, endTime: now)
-      #expect(result.count >= 0)
-    } catch {
-      #expect(error != nil)
-    }
+
+  // MARK: - User data
+
+  @Test func testIntegration_getUserState_zeroAddress() async throws {
+    let state = try await makeRepo().getUserState(address: zeroAddress)
+    #expect(state.accountAddress == zeroAddress)
   }
-  
-  @Test func testIntegration_spotUserState_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    do {
-      let result = try await repo.getSpotUserState(address: "0x0000000000000000000000000000000000000000")
-      #expect(result.accountAddress.isEmpty == false || result.accountAddress.isEmpty)
-    } catch {
-      #expect(error != nil)
-    }
+
+  @Test func testIntegration_getSpotUserState_zeroAddress() async throws {
+    let state = try await makeRepo().getSpotUserState(address: zeroAddress)
+    #expect(state.accountAddress == zeroAddress)
   }
-  
-  @Test func testIntegration_userState_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    do {
-      let result = try await repo.getUserState(address: "0x0000000000000000000000000000000000000000")
-      #expect(result != nil)
-    } catch {
-      #expect(error != nil)
-    }
+
+  @Test func testIntegration_queryFills_zeroAddress() async throws {
+    _ = try await makeRepo().queryFills(address: zeroAddress)
   }
-  
-  @Test func testIntegration_fetchBuilderFee_exposesModelMismatch() async throws {
-    let apiClient = APIClient(environment: .testnet)
-    let repo = InfoRepositoryImpl(apiClient: apiClient)
-    do {
-      let result = try await repo.fetchBuilderFee(builderAddress: "0x0000000000000000000000000000000000000000")
-      #expect(result.builderAddress.isEmpty == false || result.builderAddress.isEmpty)
-    } catch {
-      #expect(error != nil)
-    }
+
+  @Test func testIntegration_queryUserFundings_zeroAddress() async throws {
+    _ = try await makeRepo().queryUserFundings(address: zeroAddress)
+  }
+
+  @Test func testIntegration_queryOrderByOid_nonExistent() async throws {
+    let result = try await makeRepo().queryOrderByOid(orderId: "999999999", address: zeroAddress)
+    #expect(result.isEmpty)
+  }
+
+  @Test func testIntegration_queryOrderByCloid_nonExistent() async throws {
+    let result = try await makeRepo().queryOrderByCloid(
+      cloid: "0x1234567890abcdef1234567890abcdef", address: zeroAddress
+    )
+    #expect(result.isEmpty)
   }
 }

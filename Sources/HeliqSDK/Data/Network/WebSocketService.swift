@@ -7,185 +7,357 @@
 
 import Foundation
 
-public enum WebSocketState: Sendable {
+/// Represents lifecycle and message events emitted by a WebSocket connection.
+public enum WebSocketEvent: Sendable {
+  /// The connection state changed.
+  case stateChanged(WebSocketState)
+  /// A message arrived from the server.
+  case message(Data)
+  /// A transport error occurred.
+  case failed(String)
+}
+
+/// Defines WebSocket connection states.
+public enum WebSocketState: Sendable, Equatable {
+  /// The connection is inactive.
   case disconnected
+  /// A connection attempt is in progress.
   case connecting
+  /// The socket is active.
   case connected
+  /// A delayed reconnect is pending.
   case reconnecting
 }
 
-public protocol WebSocketServiceDelegate: AnyObject, Sendable {
-  func webSocketDidConnect()
-  func webSocketDidDisconnect(error: Error?)
-  func webSocketDidReceiveMessage(_ message: Data)
-  func webSocketDidReceiveError(_ error: Error)
-}
+/// Actor-owned WebSocket transport.
+///
+/// Events are delivered on this actor, not on `MainActor`. UI clients must explicitly
+/// hop to `MainActor` before mutating view state.
+public actor WebSocketService {
+  /// Receives lifecycle, message, and error events.
+  public typealias EventHandler = @Sendable (WebSocketEvent) -> Void
 
-public final class WebSocketService: NSObject, @unchecked Sendable {
-  private var webSocketTask: URLSessionWebSocketTask?
-  private var urlSession: URLSession?
   private let url: URL
-  private weak var _delegate: (any WebSocketServiceDelegate)?
+  private let session: URLSession
+  private let reconnectPolicy: ReconnectPolicy
+  private var task: URLSessionWebSocketTask?
+  private var connectionTask: Task<Void, Never>?
+  private var receiveTask: Task<Void, Never>?
+  private var reconnectTask: Task<Void, Never>?
+  private var handler: EventHandler?
   private var state: WebSocketState = .disconnected
-  private let reconnectHandler: WebSocketReconnectionHandler
-  private let healthMonitor: WebSocketHealthMonitor
-  
-  public weak var webSocketDelegate: (any WebSocketServiceDelegate)? {
-    get { _delegate }
-    set { _delegate = newValue }
-  }
-  
-  public init(url: URL, delegate: (any WebSocketServiceDelegate)? = nil) {
+  private var generation = 0
+  private var consecutiveFailures = 0
+  private var reconnectEnabled = true
+
+  /// Creates a WebSocket transport.
+  public init(
+    url: URL,
+    session: URLSession = .shared,
+    reconnectPolicy: ReconnectPolicy = .default,
+    eventHandler: EventHandler? = nil
+  ) {
     self.url = url
-    self._delegate = delegate
-    self.reconnectHandler = WebSocketReconnectionHandler()
-    self.healthMonitor = WebSocketHealthMonitor()
-    super.init()
-    self.urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
+    self.session = session
+    self.reconnectPolicy = reconnectPolicy
+    handler = eventHandler
   }
-  
+
+  /// Replaces the event handler.
+  public func setEventHandler(_ handler: EventHandler?) {
+    self.handler = handler
+  }
+
+  /// Starts a connection attempt.
   public func connect() {
     guard state == .disconnected else { return }
 
-    state = .connecting
-
-    if urlSession == nil {
-      urlSession = URLSession(configuration: .default, delegate: self, delegateQueue: .main)
-    }
-
-    webSocketTask = urlSession?.webSocketTask(with: url)
-    webSocketTask?.delegate = self
-    webSocketTask?.resume()
-    receiveMessage()
+    reconnectEnabled = true
+    startConnection()
   }
-  
+
+  /// Stops the connection and cancels all pending recovery work.
   public func disconnect() {
-    state = .disconnected
-    webSocketTask?.cancel(with: .normalClosure, reason: nil)
-    webSocketTask = nil
-    urlSession?.invalidateAndCancel()
-    urlSession = nil
+    reconnectEnabled = false
+    generation += 1
+    reconnectTask?.cancel()
+    reconnectTask = nil
+    connectionTask?.cancel()
+    connectionTask = nil
+    receiveTask?.cancel()
+    receiveTask = nil
+    task?.cancel(with: .normalClosure, reason: nil)
+    task = nil
+    consecutiveFailures = 0
+    transition(to: .disconnected)
   }
-  
-  public func send(_ data: Data) throws {
-    guard state == .connected || state == .connecting else {
+
+  /// Sends binary data through the active connection.
+  public func send(_ data: Data) async throws {
+    guard let task, state == .connected else {
       throw NetworkError.invalidResponse
     }
-    let message = URLSessionWebSocketTask.Message.data(data)
-    webSocketTask?.send(message) { [weak self] error in
-      if let error = error {
-        self?._delegate?.webSocketDidReceiveError(error)
-      }
-    }
+    try await task.send(.data(data))
   }
-  
-  public func send(_ message: String) throws {
-    guard state == .connected || state == .connecting else {
+
+  /// Sends text through the active connection.
+  public func send(_ message: String) async throws {
+    guard let task, state == .connected else {
       throw NetworkError.invalidResponse
     }
-    let message = URLSessionWebSocketTask.Message.string(message)
-    webSocketTask?.send(message) { [weak self] error in
-      if let error = error {
-        self?._delegate?.webSocketDidReceiveError(error)
-      }
-    }
-  }
-  
-public func subscribe(channel: String, payload: [String: Any]? = nil) throws {
-    var subscription: [String: Any] = [
-      "method": "subscribe"
-    ]
-
-    var subscriptionData: [String: Any] = ["type": channel]
-    if let payload = payload {
-      for (key, value) in payload {
-        subscriptionData[key] = value
-      }
-    }
-    subscription["subscription"] = subscriptionData
-
-    guard let data = try? JSONSerialization.data(withJSONObject: subscription),
-          let jsonString = String(data: data, encoding: .utf8) else {
-      throw NetworkError.invalidResponse
-    }
-
-    try send(jsonString)
+    try await task.send(.string(message))
   }
 
-  public func unsubscribe(channel: String) throws {
-    let unsubscription: [String: Any] = [
+  /// Subscribes to a channel.
+  public func subscribe(
+    channel: String,
+    payload: [String: Any]? = nil
+  ) async throws {
+    var subscription: [String: Any] = ["type": channel]
+    payload?.forEach { subscription[$0.key] = $0.value }
+    try await sendJSON(["method": "subscribe", "subscription": subscription])
+  }
+
+  /// Unsubscribes from a channel.
+  public func unsubscribe(
+    channel: String,
+    payload: [String: Any]? = nil
+  ) async throws {
+    var subscription: [String: Any] = ["type": channel]
+    payload?.forEach { subscription[$0.key] = $0.value }
+    try await sendJSON(["method": "unsubscribe", "subscription": subscription])
+  }
+
+  /// Subscribes using the typed Hyperliquid subscription model.
+  public func subscribe(
+    _ subscription: HyperliquidWebSocketSubscription
+  ) async throws {
+    try await sendJSON([
+      "method": "subscribe",
+      "subscription": subscription.payload()
+    ])
+  }
+
+  /// Unsubscribes using the typed Hyperliquid subscription model.
+  public func unsubscribe(
+    _ subscription: HyperliquidWebSocketSubscription
+  ) async throws {
+    try await sendJSON([
       "method": "unsubscribe",
-      "subscription": ["type": channel]
-    ]
+      "subscription": subscription.payload()
+    ])
+  }
 
-    guard let data = try? JSONSerialization.data(withJSONObject: unsubscription),
-          let jsonString = String(data: data, encoding: .utf8) else {
+  /// Posts a typed WebSocket request.
+  public func post(_ request: HyperliquidWebSocketPostRequest) async throws {
+    try await sendJSON(request.object())
+  }
+
+  private func startConnection() {
+    let connectionGeneration = generation
+    transition(to: .connecting)
+    Logger.shared.info("websocket lifecycle=connect-start", category: .webSocket)
+
+    let task = session.webSocketTask(with: url)
+    self.task = task
+    task.resume()
+    confirmConnection(for: task, generation: connectionGeneration)
+    receiveMessages(for: task, generation: connectionGeneration)
+  }
+
+  private func confirmConnection(
+    for task: URLSessionWebSocketTask,
+    generation: Int
+  ) {
+    connectionTask?.cancel()
+    connectionTask = Task { [weak self] in
+      guard let self else { return }
+
+      do {
+        try await self.waitForPong(from: task)
+        await self.markConnected(task: task, generation: generation)
+      } catch is CancellationError {
+        return
+      } catch {
+        await self.handleDisconnection(
+          error: error,
+          task: task,
+          generation: generation
+        )
+      }
+    }
+  }
+
+  private func waitForPong(from task: URLSessionWebSocketTask) async throws {
+    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+      task.sendPing { error in
+        if let error {
+          continuation.resume(throwing: error)
+        } else {
+          continuation.resume()
+        }
+      }
+    }
+  }
+
+  private func markConnected(
+    task connectedTask: URLSessionWebSocketTask,
+    generation: Int
+  ) {
+    guard isCurrent(task: connectedTask, generation: generation),
+          state == .connecting else {
+      return
+    }
+
+    consecutiveFailures = 0
+    transition(to: .connected)
+    Logger.shared.info("websocket lifecycle=connected", category: .webSocket)
+  }
+
+  private func receiveMessages(
+    for task: URLSessionWebSocketTask,
+    generation: Int
+  ) {
+    receiveTask?.cancel()
+    receiveTask = Task { [weak self] in
+      guard let self else { return }
+
+      do {
+        while !Task.isCancelled {
+          let message = try await task.receive()
+          guard await self.isCurrent(task: task, generation: generation) else {
+            return
+          }
+          await self.handle(message, task: task, generation: generation)
+        }
+      } catch is CancellationError {
+        return
+      } catch {
+        await self.handleDisconnection(
+          error: error,
+          task: task,
+          generation: generation
+        )
+      }
+    }
+  }
+
+  private func isCurrent(
+    task: URLSessionWebSocketTask,
+    generation: Int
+  ) -> Bool {
+    self.task === task && self.generation == generation && reconnectEnabled
+  }
+
+  private func handle(
+    _ message: URLSessionWebSocketTask.Message,
+    task messageTask: URLSessionWebSocketTask,
+    generation: Int
+  ) {
+    guard isCurrent(task: messageTask, generation: generation) else { return }
+
+    switch message {
+    case .data(let data):
+      handler?(.message(data))
+    case .string(let text):
+      handler?(.message(Data(text.utf8)))
+    @unknown default:
+      break
+    }
+  }
+
+  private func handleDisconnection(
+    error: Error,
+    task failedTask: URLSessionWebSocketTask,
+    generation: Int
+  ) {
+    guard self.task === failedTask,
+          self.generation == generation,
+          reconnectEnabled else {
+      return
+    }
+
+    connectionTask?.cancel()
+    connectionTask = nil
+    receiveTask?.cancel()
+    receiveTask = nil
+    task = nil
+    consecutiveFailures += 1
+    handler?(.failed("WEBSOCKET_CONNECTION_FAILED"))
+    scheduleReconnect(for: generation)
+  }
+
+  private func scheduleReconnect(for generation: Int) {
+    guard reconnectEnabled,
+          reconnectTask == nil,
+          consecutiveFailures <= reconnectPolicy.maxAttempts else {
+      transition(to: .disconnected)
+      return
+    }
+
+    transition(to: .reconnecting)
+    let delay = reconnectPolicy.delay(forFailureCount: consecutiveFailures)
+    reconnectTask = Task { [weak self] in
+      do {
+        try await Task.sleep(for: .seconds(delay))
+      } catch {
+        return
+      }
+
+      guard let self else { return }
+      await self.reconnect(after: generation)
+    }
+  }
+
+  private func reconnect(after generation: Int) {
+    reconnectTask = nil
+    guard self.generation == generation, reconnectEnabled else { return }
+    transition(to: .disconnected)
+    startConnection()
+  }
+
+  private func sendJSON(_ object: [String: Any]) async throws {
+    let data = try JSONSerialization.data(withJSONObject: object)
+    guard let text = String(data: data, encoding: .utf8) else {
       throw NetworkError.invalidResponse
     }
+    try await send(text)
+  }
 
-    try send(jsonString)
-  }
-  
-  private func receiveMessage() {
-    webSocketTask?.receive { [weak self] result in
-      guard let self = self else { return }
-      
-      switch result {
-      case .success(let message):
-        switch message {
-        case .string(let text):
-          if let data = text.data(using: .utf8) {
-            self._delegate?.webSocketDidReceiveMessage(data)
-          }
-        case .data(let data):
-          self._delegate?.webSocketDidReceiveMessage(data)
-        @unknown default:
-          break
-        }
-        self.receiveMessage()
-        
-      case .failure(let error):
-        self._delegate?.webSocketDidReceiveError(error)
-        self.handleDisconnection(error: error)
-      }
-    }
-  }
-  
-  private func handleDisconnection(error: Error?) {
-    state = .disconnected
-    _delegate?.webSocketDidDisconnect(error: error)
-    
-    Task { [weak self] in
-      guard let self = self else { return }
-      let shouldReconnect = await self.reconnectHandler.shouldReconnect()
-      if shouldReconnect {
-        self.state = .reconnecting
-        await self.reconnectHandler.scheduleReconnect()
-        await MainActor.run {
-          self.connect()
-        }
-      }
-    }
+  private func transition(to state: WebSocketState) {
+    self.state = state
+    handler?(.stateChanged(state))
   }
 }
 
-extension WebSocketService: URLSessionWebSocketDelegate {
-  public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
-    state = .connected
-    healthMonitor.recordConnection()
-    _delegate?.webSocketDidConnect()
-  }
-  
-  public func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didCloseWith closeCode: URLSessionWebSocketTask.CloseCode, reason: Data?) {
-    handleDisconnection(error: nil)
-  }
-}
+/// Controls automatic WebSocket reconnect attempts.
+public struct ReconnectPolicy: Sendable, Equatable {
+  /// Maximum reconnect attempts after a transport failure.
+  public let maxAttempts: Int
+  /// Initial delay before the first reconnect attempt.
+  public let initialDelay: TimeInterval
+  /// Maximum delay after exponential backoff.
+  public let maximumDelay: TimeInterval
 
-extension WebSocketService: URLSessionTaskDelegate {
-  public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-    if let error = error {
-      _delegate?.webSocketDidReceiveError(error)
-      handleDisconnection(error: error)
-    }
+  /// Default reconnect policy.
+  public static let `default` = ReconnectPolicy(
+    maxAttempts: 5,
+    initialDelay: 1,
+    maximumDelay: 30
+  )
+
+  /// Creates a reconnect policy.
+  public init(
+    maxAttempts: Int,
+    initialDelay: TimeInterval,
+    maximumDelay: TimeInterval
+  ) {
+    self.maxAttempts = maxAttempts
+    self.initialDelay = initialDelay
+    self.maximumDelay = maximumDelay
+  }
+
+  func delay(forFailureCount failureCount: Int) -> TimeInterval {
+    min(initialDelay * pow(2, Double(failureCount - 1)), maximumDelay)
   }
 }

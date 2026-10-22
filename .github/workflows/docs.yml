@@ -1,0 +1,117 @@
+name: Documentation
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'Sources/**'
+      - 'Docs/**'
+      - 'Scripts/check_docc_coverage.py'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'project.yml'
+      - '.github/workflows/docs.yml'
+  push:
+    branches: [master]
+    paths:
+      - 'Sources/**'
+      - 'Docs/**'
+      - 'Scripts/check_docc_coverage.py'
+      - 'Package.swift'
+      - 'Package.resolved'
+      - 'project.yml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate public symbol documentation
+        run: python3 Scripts/check_docc_coverage.py
+
+  build:
+    needs: audit
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate Xcode project
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: |
+          brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+          xcodegen generate --spec project.yml
+
+      - name: Cache Xcode packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/heliq-xcode-packages
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode16.4-packages-${{ hashFiles('project.yml', 'Package.resolved') }}
+
+      - name: Build DocC archive
+        run: |
+          xcodebuild docbuild \
+            -project HeliqSDK.xcodeproj \
+            -scheme HeliqSDK \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/heliq-docs" \
+            -clonedSourcePackagesDirPath "$HOME/.cache/heliq-xcode-packages" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Build static documentation site
+        run: |
+          "$(xcrun --find docc)" process-archive transform-for-static-hosting \
+            "$RUNNER_TEMP/heliq-docs/Build/Products/Debug-iphoneos/HeliqSDK.doccarchive" \
+            --output-path _site \
+            --hosting-base-path heliq-sdk
+
+      - name: Configure Pages
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

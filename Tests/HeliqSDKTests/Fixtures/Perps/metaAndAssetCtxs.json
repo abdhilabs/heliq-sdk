@@ -1,0 +1,1 @@
+[{"universe":[{"name":"BTC","szDecimals":5,"maxLeverage":50,"marginTableId":50}],"marginTables":[[50,{"description":"","marginTiers":[{"lowerBound":"0","maxLeverage":50}]}]],"collateralToken":0},[{"dayNtlVlm":"100","funding":"0.0001","markPx":"50000","midPx":null,"openInterest":"1","oraclePx":"50000","prevDayPx":"49000","premium":null,"impactPxs":null}]]

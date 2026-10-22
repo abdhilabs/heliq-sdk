@@ -1,0 +1,1 @@
+{"status":"order","order":{"order":{"coin":"BTC","side":"B","limitPx":"50000","sz":"0.001","oid":42,"timestamp":1700000000123,"origSz":"0.001","cloid":null,"tif":"Gtc","reduceOnly":false,"isTrigger":false,"triggerPx":"0","triggerCondition":"N/A","orderType":"Limit","isPositionTpsl":false},"status":"open","statusTimestamp":1700000000123}}

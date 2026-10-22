@@ -7,16 +7,25 @@
 
 import Foundation
 
+/// Represents a value for candle.
 public struct Candle: Sendable, Codable, Identifiable {
+  /// The id value.
   public var id: String { "\(timestamp.timeIntervalSince1970)" }
   
+  /// The timestamp associated with this value.
   public let timestamp: Date
+  /// The open associated with this value.
   public let open: Double
+  /// The high associated with this value.
   public let high: Double
+  /// The low associated with this value.
   public let low: Double
+  /// The close associated with this value.
   public let close: Double
+  /// The volume associated with this value.
   public let volume: Double
   
+  /// Creates an instance with the supplied values.
   public init(
     timestamp: Date,
     open: Double,

@@ -1,0 +1,1 @@
+{"channel":"spotState","data":{"user":"0x1234567890123456789012345678901234567890","spotState":{"balances":[{"coin":"USDC","token":0,"total":"100.123456","hold":"10","entryNtl":"100"}],"tokenToAvailableAfterMaintenance":[[0,"80.123456"]]}}}

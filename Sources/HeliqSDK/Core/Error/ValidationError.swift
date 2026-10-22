@@ -7,14 +7,22 @@
 
 import Foundation
 
+/// Describes validation failures returned by the SDK.
 public enum ValidationError: HeliqError, Sendable {
+  /// A required field was absent.
   case missingRequiredField(field: String)
+  /// A field did not match its expected format.
   case invalidFieldFormat(field: String, expected: String)
+  /// A value had an unexpected type.
   case typeMismatch(expected: String, actual: String)
+  /// A numeric field was outside its allowed range.
   case outOfRange(field: String, min: Double?, max: Double?)
+  /// A value was not valid for an enumeration.
   case invalidEnumValue(type: String, value: String)
+  /// Input data was malformed.
   case malformedData(reason: String)
   
+  /// Stable machine-readable code for this error.
   public var errorCode: String {
     switch self {
     case .missingRequiredField:
@@ -32,6 +40,7 @@ public enum ValidationError: HeliqError, Sendable {
     }
   }
   
+  /// Human-readable description of this error.
   public var errorDescription: String {
     switch self {
     case .missingRequiredField(let field):
@@ -57,6 +66,7 @@ public enum ValidationError: HeliqError, Sendable {
     }
   }
   
+  /// Whether retrying the failed operation may succeed.
   public var isRetryable: Bool {
     false
   }

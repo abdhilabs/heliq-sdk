@@ -1,0 +1,1 @@
+{"channel":"userNonFundingLedgerUpdates","data":{"user":"0x1234567890123456789012345678901234567890","isSnapshot":true,"nonFundingLedgerUpdates":[{"time":1700000000123,"hash":"0xabc","delta":{"type":"accountClassTransfer","usdc":"5","toPerp":true}}]}}

@@ -1,20 +1,20 @@
 # HeliqSDK
 
-A Swift SDK for Hyperliquid DEX, built with Swift 6.0 and async/await concurrency.
+A Swift SDK for Hyperliquid DEX, built with Swift 6.1 and async/await concurrency.
 
 ## Features
 
 - **Clean Architecture**: Domain, Data, and Core layers for maintainable code
 - **Swift 6 Concurrency**: Native async/await throughout the SDK
 - **WebSocket Support**: Real-time market data and user event subscriptions
-- **Comprehensive API Coverage**: Full support for Hyperliquid Info and Exchange APIs
 - **Type-Safe**: All entities conform to `Sendable` for Swift 6 data race safety
+- **Full Hyperliquid Transport Coverage**: Official Info (`/info`), Exchange (`/exchange`), WebSocket subscriptions, WebSocket `post` requests, exact unsubscribe payloads, and normal inbound `channel`/`data` events are supported through the lossless `raw` / `HyperliquidWebSocketSubscription` APIs. Core convenience repositories remain additive typed wrappers.
+
+> **Coverage note:** HeliqSDK provides core typed convenience repositories plus a full lossless transport layer. Hyperliquid responses evolve frequently, so advanced responses return `JSONValue` rather than lossy SDK models.
 
 ## Installation
 
 ### Swift Package Manager
-
-Add the following to your `Package.swift`:
 
 ```swift
 dependencies: [
@@ -25,7 +25,7 @@ dependencies: [
 ### Xcode
 
 1. File > Add Package Dependencies
-2. Enter: `https://github.com/your-org/HeliqSDK.git`
+2. Enter the repository URL
 3. Select version and add to your project
 
 ## Quick Start
@@ -35,27 +35,34 @@ dependencies: [
 ```swift
 import HeliqSDK
 
-// In your AppDelegate or main entry point
-func application(_ application: UIApplication, 
-    didFinishLaunchingWithOptions...) -> Bool {
-    
-    HeliqSDK.shared.initialize { builder in
-        builder.environment(.mainnet)  // or .testnet, .local
-        builder.wallet(myWalletService)
-    }
-    
-    return true
+HeliqSDK.shared.initialize { builder in
+    builder.environment(.mainnet)  // or .testnet, .local
+    builder.wallet(myWalletService)
+    builder.logging(.verbose)      // optional; .disabled is the default
 }
 ```
+
+### Diagnostics logging
+
+Logging uses Apple OSLog and is disabled by default. Enable it at initialization with one of:
+
+```swift
+.disabled                         // default: no logs
+.debug    // [.error, .warning]
+.verbose  // [.error, .warning, .info]
+
+// Custom combinations are supported.
+builder.logging([.error, .info])
+```
+
+`.debug` logs failures, retries, rate limits, and recoverable warnings. `.verbose` adds safe lifecycle and timing traces. The latest SDK initialization replaces the active level. Non-2xx response bodies are logged only at `.verbose`, capped at 16 KB with a truncation marker. Request bodies and successful response bodies are never logged.
 
 ### Fetch Market Data
 
 ```swift
-// Read-only operations (no wallet required)
 let allMids = try await HeliqSDK.shared.info.getAllMids()
 print(allMids.prices)
 
-// Get user state (requires wallet)
 let userState = try await HeliqSDK.shared.info.getUserState(address: "0x...")
 print(userState.positions)
 ```
@@ -78,15 +85,137 @@ print(response.status)
 ### WebSocket Subscriptions
 
 ```swift
-// Subscribe to real-time data
-try await HeliqSDK.shared.webSocket.subscribe(to: .allMids)
-try await HeliqSDK.shared.webSocket.subscribe(to: .l2Book(coin: "BTC"))
-
-// Listen for updates
-HeliqSDK.shared.webSocket.onMessage { data in
-    // Handle WebSocket message
-}
+// Low-level WebSocketService
+let ws = WebSocketService(url: URL(string: Constants.WebSocket.mainnetURL)!)
+ws.connect()
+try ws.subscribe(channel: "allMids")
+try ws.subscribe(channel: "l2Book", payload: ["coin": "BTC"])
 ```
+
+## Hyperliquid API Coverage
+
+Validated against official docs:
+- [Info endpoint](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/info-endpoint)
+- [Exchange endpoint](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/exchange-endpoint)
+- [WebSocket subscriptions](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket/subscriptions)
+
+### Full-surface raw transport (`POST /info`, `POST /exchange`, WebSocket)
+
+The `InfoRepository` and `ExchangeRepository` APIs below are typed convenience wrappers. For full Hyperliquid surface parity, use the lossless transport. Every documented request/action field is supplied in `parameters` and responses decode as `JSONValue`, so new server response fields are never discarded.
+
+```swift
+// Any documented Info request type, including openOrders, portfolio, staking,
+// vault, HIP-3, and borrow/lend requests.
+let result = try await HeliqSDK.shared.raw.info(.init(
+    type: .openOrders,
+    parameters: ["user": .string("0x...")]
+))
+
+// Raw Exchange actions accept signatures from the native signer or an external wallet.
+let action = HyperliquidExchangeAction(type: .twapOrder, parameters: [
+    "twap": .object([/* official action fields */])
+])
+let response = try await HeliqSDK.shared.raw.exchange(.init(
+    action: action, nonce: nonce, signature: signature, expiresAfter: expiry
+))
+
+// Any documented WebSocket feed, preserving user, coin, dex, and optional fields.
+let subscription = HyperliquidWebSocketSubscription(
+    type: .openOrders,
+    parameters: ["user": .string("0x..."), "dex": .string("xyz")]
+)
+try ws.subscribe(subscription)
+```
+
+### Typed convenience APIs
+
+### Info API (`POST /info`) — typed convenience methods
+
+| SDK method | Request `type` |
+|---|---|
+| `getUserState` | `userState` |
+| `getSpotUserState` | `spotUserState` |
+| `getAllMids` | `allMids` |
+| `getAssetCtxs` | `assetCtxs` |
+| `getSpotAssetCtxs` | `spotAssetCtxs` |
+| `getCandleSnapshot` | `candleSnapshot` |
+| `getL2Book` | `l2Book` |
+| `queryOrderByOid` | `queryOrderByOid` |
+| `queryOrderByCloid` | `queryOrderByCloid` |
+| `queryFills` | `queryFills` |
+| `queryUserFundings` | `queryUserFundings` |
+| `getMeta` | `meta` |
+| `getSpotMeta` | `spotMeta` |
+| `getTime` | `getTime` |
+| `fetchBuilderFee` | `fetchBuilderFee` |
+
+### Info API — raw transport coverage
+
+All official Info request types are available through `HyperliquidInfoType` and `.custom(String)`. This includes open orders, frontend orders, fills/time-range queries, rate limits, order status, historical/TWAP data, subaccounts, staking/delegation, portfolio/fees/referral, metadata/context variants, vault data, HIP-3, builder approvals, and borrow/lend state.
+
+### Exchange API (`POST /exchange`) — typed convenience methods
+
+| SDK method | Action `type` |
+|---|---|
+| `placeOrder` | `order` |
+| `bulkOrders` | `order` |
+| `cancelOrder` | `cancel` |
+| `cancelByCloid` | `cancelByCloid` |
+| `cancelAll` | `openOrders` query then `cancel` |
+| `modifyOrder` | `batchModify` |
+| `modifyByCloid` | `batchModify` |
+| `setLeverage` | `updateLeverage` |
+| `setMarginMode` | `updateLeverage` |
+| `transfer` | `usdSend` or `spotSend` |
+| `sendToAddress` | `usdSend` or `spotSend` |
+| `spotTransfer` | `spotSend` |
+| `vaultTransfer` | `vaultTransfer` |
+| `updateBuilder(builderAddress:maxFeeRate:)` | `approveBuilderFee` |
+| `scheduleCancel` | `scheduleCancel` |
+| `setReferrer` | `setReferrer` |
+| `convertToMultiSigUser(authorizedUsers:threshold:)` | `convertToMultiSigUser` |
+| `usdSend` | `usdSend` |
+
+Typed actions call the wallet's `signL1` or `signUserSigned` implementation and send
+`{action, nonce, signature}`. `WalletService(keyManager:)` implements both with the
+native signer. Legacy wallets implementing only `sign(message:)` must add these
+protocol methods; they now fail explicitly instead of submitting unsigned requests.
+
+Market orders are IOC limit orders using current mids, 5% slippage, and official
+price rounding; supply `OrderRequest.price` to set an explicit bound. Modification
+queries the existing open order and preserves its side, reduce-only flag, trigger,
+and time in force in the submitted request. Hyperliquid can override a non-executable
+Gtc modification to Alo. Client-ID modifications resolve the current open order
+when historical lookup still returns its canceled predecessor.
+Leverage/margin changes preserve the other setting.
+
+For transfers, `asset: 0` means perpetual USDC; other values are spot token indices.
+`spotTransfer` always uses a `spotMeta.tokens` index (including 0 for spot USDC),
+not an order market index. `transfer.fromAddress` must equal the signing wallet.
+Unified accounts and portfolio-margin accounts use `sendAsset` for these transfers;
+standard accounts retain the legacy `usdSend` and `spotSend` actions.
+Vault amounts are USDC units and are encoded as integer micro-USDC. Referrers are
+referral codes. Builder approval requires an explicit fee percentage; multisig
+conversion requires explicit signer addresses and threshold. The old parameterless
+forms throw a validation error rather than inventing account permissions.
+
+Order/cancel responses preserve per-item failures; single-order submissions throw
+on rejection. Check every bulk response and cancellation result before reporting
+success. Exchange mutations are never automatically retried.
+
+### Exchange API — raw transport coverage
+
+All official signed Exchange actions are available through `HyperliquidExchangeActionType` and `.custom(String)`, including withdrawals, spot sends, USDC-class transfers, leverage/margin updates, batch modifications, TWAP, agent/builder approvals, vault/sub-account actions, delegation, Core deposits/withdrawals, multi-sig, and request-weight reservation.
+
+> **Signing:** `Signer` supports recursive canonical-MessagePack L1 `Agent` signatures and caller-schema user-signed EIP-712 envelopes. Official golden vectors cover L1 dummy on mainnet/testnet, nested L1 orders, USD transfer, and bridge withdrawal. Further user-signed schemas remain caller-supplied until upstream fixtures exist. `HyperliquidExchangeEnvelope` accepts caller-provided `SignatureTypes` for hardware wallets, contract wallets, and externally managed keys; the SDK never serializes or transmits a private key.
+
+### WebSocket — typed convenience channels
+
+`allMids`, `l2Book`, `trades`, `userEvents`, `userFills`, `candle`, `orderUpdates`, `userFundings`, `userNonFundingLedgerUpdates`, `webData2`, `bbo`, `activeAssetCtx`, `activeAssetData`
+
+### WebSocket — raw transport coverage
+
+All official subscriptions, including `notification`, `webData3`, `twapStates`, `clearinghouseState`, `openOrders`, user TWAP feeds, `spotState`, all-DEX state/context, outcome metadata, and compressed `fastAssetCtxs`, are available through `HyperliquidWebSocketSubscription`. `FastAssetCtxDecoder` decodes the documented raw-DEFLATE payload into typed sparse asset-context updates. User-scoped fields are carried explicitly in `parameters`.
 
 ## Architecture
 
@@ -98,12 +227,10 @@ HeliqSDK.shared.webSocket.onMessage { data in
                       │
 ┌─────────────────────▼───────────────────────────────┐
 │              Repository Protocol                   │
-│              (Abstraction Layer)                    │
 └─────────────────────┬───────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────┐
 │            Repository Implementation               │
-│            (Data Access Logic)                     │
 └─────────────────────┬───────────────────────────────┘
                       │
 ┌─────────────────────▼───────────────────────────────┐
@@ -112,12 +239,131 @@ HeliqSDK.shared.webSocket.onMessage { data in
 └─────────────────────────────────────────────────────┘
 ```
 
+## Testing
+
+| Suite | Target | What it covers |
+|---|---|---|
+| Unit | `HeliqSDKTests` | Entities, errors, repos (mocked), use cases, network helpers, feature-coverage matrix |
+| Integration | `HeliqSDKIntegrationTests` | Live testnet Info / Exchange / WebSocket for every implemented method |
+| UI | `HeliqSDKDemoUITests` | Demo app navigation + feature screens |
+
+```bash
+# Unit (CI)
+xcodebuild test -project HeliqSDK.xcodeproj -scheme HeliqSDK -destination 'platform=iOS Simulator,name=iPhone Air'
+
+# Integration (local / testnet)
+xcodebuild test -project HeliqSDK.xcodeproj -scheme HeliqSDKIntegrationTests -destination 'platform=iOS Simulator,name=iPhone Air'
+
+# UI (demo)
+xcodebuild test -project HeliqSDK.xcodeproj -scheme HeliqSDKDemo -destination 'platform=iOS Simulator,name=iPhone Air'
+```
+
+Project documentation is gathered in [Docs](Docs/README.md).
+
+### GitHub Actions
+
+SDK tests, documentation, and release validation use standard GitHub-hosted
+`macos-15` ARM64 runners with Xcode 16.4. iOS/demo builds use `macos-26` with
+Xcode 26.6 to avoid a Swift 6.1 compiler crash in LightweightCharts. Workflow
+linting, the public-symbol audit, Pages deployment, and draft release creation
+use `ubuntu-latest`. No self-hosted runner or personal Mac is required.
+Fork PRs can run validation without repository secrets or write permissions.
+
+CI runs on `master`/`develop` pushes and PRs, with manual dispatch available.
+It runs release-mode SDK unit tests serially with coverage, uploads SwiftPM's
+LLVM coverage JSON with file summaries and line segments (omitting verbose
+function/expansion records), and builds the iOS SDK/demo test bundles for ARM64
+without booting a simulator. `swift test` builds the SDK itself; a separate
+duplicate build is unnecessary. No funded or live integration suite is run.
+
+SwiftPM build caches are keyed by toolchain, dependencies, and source content.
+Xcode dependency-download caches are separated by toolchain. Expensive
+macOS jobs wait for inexpensive lint/audit checks. Superseded CI and PR docs
+runs are cancelled, and documentation-only changes skip CI builds. Documentation
+builds run only when their inputs change. If enabling required status checks,
+account for these workflow path filters: skipped workflows leave required checks
+pending. Standard hosted runners are free for public repositories; private
+repositories use the account's included minutes and billing limits.
+
+Documentation retains the public-symbol audit and deploys Pages only from
+`master`; configure the repository's Pages source as **GitHub Actions**.
+Version tags (`v*`) validate the SDK before creating a draft release, never an
+automatic published release. No Codecov token is needed for coverage artifacts.
+
+## Typed user data
+
+The `sdk.info` user-state, spot-balance, fill, funding, and order-query methods use
+Hyperliquid's official Info endpoints. Order queries accept an explicit `address`:
+
+```swift
+let orders = try await client.info.queryOrderByOid(orderId: "123", address: userAddress)
+```
+
+Calls without an address use the client's configured wallet and throw
+`ValidationError.missingRequiredField(field: "address")` when no wallet exists.
+Unknown orders return an empty array.
+
+`UserState.marginMode` and `leverage` are optional summaries of matching position
+settings; they are nil for empty or mixed portfolios. Each `AssetPosition` exposes
+its own settings. `entryPrice` is optional, and `realizedPnl` is nil for
+clearinghouse responses because that endpoint does not supply realized PnL.
+Consumers upgrading from the previous model must unwrap these optional values.
+Custom `InfoRepository` implementations must implement the explicit-address order
+query overloads.
+
+Metadata methods map official market definitions to SDK asset IDs. Perpetual
+`MetaAsset.weiDecimals` is nil because perpetual metadata has no token precision;
+spot precision comes from each market's base token. `BuilderFee.feeBps` is now a
+`Double` to preserve the API's 0.1-bps increments. Builder-fee queries accept an
+explicit `address` or use the configured wallet, just like order queries.
+
 ## Requirements
 
-- Swift 6.0
-- Xcode 16.0+
-- iOS 16.0+ / macOS 13.0+
+- Swift 6.1
+- Xcode 16.3+
+- iOS 16.0+ / macOS 13.0+ (SPM); demo app targets iOS 17.0+
 
 ## License
 
-MIT
+Licensed under the [MIT License](LICENSE).
+
+### Available balances and complete typed Perps APIs
+
+```swift
+let balances = try await sdk.info.getBalances(address: address)
+let capacity = try await sdk.info.getActiveAssetData(address: address, coin: "BTC")
+let metadata = try await sdk.info.perps(.meta(dex: "xyz"))
+
+if balances.abstraction.supportsClassTransfer {
+  _ = try await sdk.exchange.usdClassTransfer(amount: Decimal(1), toPerp: true)
+}
+
+let result = try await sdk.exchange.executePerps(.orders([
+  .init(market: .coin("BTC"), side: .buy, size: Decimal(string: "0.001")!,
+    price: Decimal(50000), kind: .limit(.alo))
+]))
+```
+
+`getBalances(address:)` reads global Spot balances and validator Perps. Use
+`getBalances(address:dexes:)` for explicit HIP-3 DEXs. Shared collateral is counted
+only in Spot; missing or inapplicable availability values stay optional. Unheld,
+available-after-maintenance, withdrawable, and coin-specific trading capacity are
+separate values. The SDK does not derive withdrawal capacity from account value.
+
+New typed APIs use Decimal, metadata-based market IDs/precision, and exact integer
+transport. They include TP/SL grouping, batch modification/cancellation, isolated
+margin, market closes, TWAP, trailing stops, agent/subaccount operations, immutable
+multisig preparation/signing/recovery, and current HIP-3 deployment actions.
+Existing APIs remain available; new custom-repository requirements default to explicit
+unsupported errors. Wallet adapters can implement contextual `signL1Payload` for
+vaults, expiry, and multisig arrays.
+
+The demo's **Typed Perps trading** screen shows balances and buy/sell capacity,
+selects markets from metadata, and provides trading/position/class-transfer controls.
+Administrative/deployment APIs are demonstrated through SDK tests rather than UI forms.
+
+See [typed Perps coverage](Docs/PERPS_API_COVERAGE.md)
+and [Perps and balances documentation](Sources/HeliqSDK/HeliqSDK.docc/PerpsAndBalances.md).
+
+The sample app provides Overview, Perpetuals, API Explorer, and Settings tabs.
+See the [sample app guide](Docs/DEMO_GUIDE.md) for trading workflows and UI checks.

@@ -12,7 +12,7 @@ struct InfoView: View {
   @State private var selectedSection: InfoSection = .marketData
   @State private var isLoading = false
   @State private var errorMessage: String?
-  
+
   @State private var allMids: AllMids?
   @State private var assetCtxs: [AssetContext] = []
   @State private var spotAssetCtxs: [SpotAssetContext] = []
@@ -20,30 +20,31 @@ struct InfoView: View {
   @State private var candles: [Candle] = []
   @State private var userState: UserState?
   @State private var spotUserState: SpotUserState?
-  @State private var fills: [Fill] = []
-  @State private var userFundings: [UserFunding] = []
+  @State private var fills: [Fill]?
+  @State private var userFundings: [UserFunding]?
   @State private var meta: Meta?
   @State private var spotMeta: Meta?
-  @State private var serverTime: Date?
   @State private var builderFee: BuilderFee?
-  @State private var orders: [Order] = []
-  
+  @State private var orders: [Order]?
+
   @State private var selectedCoin = "BTC"
+  private enum OrderField: Hashable { case oid, cloid, builder }
+  @FocusState private var focusedOrderField: OrderField?
   @State private var orderIdInput = ""
   @State private var cloidInput = ""
   @State private var userAddressInput = ""
   @State private var builderAddressInput = ""
   @State private var candleInterval = "1m"
   @State private var candleCoinInput = "BTC"
-  
+
   private let sdkManager = SDKManager.shared
-  
+
   enum InfoSection: String, CaseIterable {
     case marketData = "Market Data"
     case userData = "User Data"
     case metadata = "Metadata"
   }
-  
+
   var body: some View {
     List {
       Section {
@@ -55,6 +56,24 @@ struct InfoView: View {
         .pickerStyle(.segmented)
       }
       
+      if isLoading {
+        Section {
+          HStack {
+            ProgressView()
+            Text("Loading…")
+          }
+        }
+      }
+
+      if let errorMessage {
+        Section("Error") {
+          Text(errorMessage)
+            .foregroundStyle(.red)
+            .accessibilityIdentifier("info_error")
+        }
+      }
+
+      Group {
       switch selectedSection {
       case .marketData:
         marketDataSection
@@ -63,13 +82,15 @@ struct InfoView: View {
       case .metadata:
         metadataSection
       }
+      }.disabled(isLoading)
     }
     .navigationTitle("Info API")
+    .demoForm()
     .refreshable {
       await refreshCurrentSection()
     }
   }
-  
+
   @ViewBuilder
   private var marketDataSection: some View {
     Section("All Mids") {
@@ -137,7 +158,7 @@ struct InfoView: View {
     }
     
     Section("Order Book (L2)") {
-      TextField("Coin (e.g. BTC)", text: $selectedCoin)
+      DemoTextField("Coin (e.g. BTC)", text: $selectedCoin)
         .textInputAutocapitalization(.characters)
       if let book = l2Book {
         VStack(alignment: .leading, spacing: 4) {
@@ -186,7 +207,7 @@ struct InfoView: View {
     }
     
     Section("Candles") {
-      TextField("Coin", text: $candleCoinInput)
+      DemoTextField("Coin", text: $candleCoinInput)
         .textInputAutocapitalization(.characters)
       Picker("Interval", selection: $candleInterval) {
         Text("1m").tag("1m")
@@ -206,22 +227,21 @@ struct InfoView: View {
       }
     }
     
-    Section("Server Time") {
-      if let time = serverTime {
-        Text(formatDate(time))
-          .font(.system(.body, design: .monospaced))
-      }
-      Button("Get Server Time") {
-        Task { await getTime() }
-      }
-    }
   }
-  
+
   @ViewBuilder
   private var userDataSection: some View {
+    Section {
+      NavigationLink("Available balances", destination: AvailableBalancesView(address: userAddressInput))
+        .disabled(userAddressInput.isEmpty)
+    }
     Section("User Address") {
-      TextField("Wallet Address", text: $userAddressInput)
+      DemoTextField("Wallet Address", text: $userAddressInput)
         .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+      Text("Enter a 0x-prefixed wallet address. Never fund the public demo wallet.")
+        .font(.caption)
+        .foregroundStyle(.secondary)
       if sdkManager.walletAddress != nil && userAddressInput.isEmpty {
         Button("Use Demo Wallet") {
           userAddressInput = sdkManager.walletAddress ?? ""
@@ -232,98 +252,85 @@ struct InfoView: View {
     
     Section("User State (Perpetual)") {
       if let state = userState {
-        UserStateView(userState: state)
+        userResponse(state, identifier: "user_state_result")
       }
       Button("Load User State") {
         Task { await loadUserState() }
       }
-      .disabled(userAddressInput.isEmpty)
+      .disabled(!userAddressInput.hasPrefix("0x") || !userAddressInput.isValidEthereumAddress)
     }
     
     Section("Spot User State") {
       if let state = spotUserState {
-        SpotUserStateView(spotState: state)
+        userResponse(state, identifier: "spot_user_state_result")
       }
       Button("Load Spot User State") {
         Task { await loadSpotUserState() }
       }
-      .disabled(userAddressInput.isEmpty)
+      .disabled(!userAddressInput.hasPrefix("0x") || !userAddressInput.isValidEthereumAddress)
     }
     
     Section("Fills") {
-      if !fills.isEmpty {
-        ForEach(fills) { fill in
-          VStack(alignment: .leading, spacing: 4) {
-            HStack {
-              Text(fill.symbol)
-                .font(.headline)
-              Text(fill.side.rawValue)
-                .foregroundStyle(fill.side == .buy ? .green : .red)
-              Spacer()
-              Text(String(format: "%.4f @ %.2f", fill.size, fill.price))
-                .font(.system(.caption, design: .monospaced))
-            }
-            Text("Fee: \(String(format: "%.2f", fill.fee)) | \(formatDate(fill.timestamp))")
-              .font(.caption)
-              .foregroundStyle(.secondary)
-          }
-        }
+      if let fills {
+        userResponse(fills, identifier: "fills_result")
       }
       Button("Load Fills") {
         Task { await loadFills() }
       }
-      .disabled(userAddressInput.isEmpty)
+      .disabled(!userAddressInput.hasPrefix("0x") || !userAddressInput.isValidEthereumAddress)
     }
     
     Section("User Fundings") {
-      if !userFundings.isEmpty {
-        ForEach(userFundings, id: \.time) { funding in
-          HStack {
-            Text("Asset #\(funding.asset)")
-              .font(.headline)
-            Spacer()
-            Text(String(format: "%.4f", funding.payment))
-              .foregroundStyle(funding.payment >= 0 ? .green : .red)
-          }
-          Text("Rate: \(String(format: "%.6f", funding.rate)) | \(formatDate(funding.time))")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-        }
+      if let userFundings {
+        userResponse(userFundings, identifier: "fundings_result")
       }
       Button("Load Fundings") {
         Task { await loadUserFundings() }
       }
-      .disabled(userAddressInput.isEmpty)
+      .disabled(!userAddressInput.hasPrefix("0x") || !userAddressInput.isValidEthereumAddress)
     }
     
     Section("Order Queries") {
-      TextField("Order ID", text: $orderIdInput)
+      if let orders {
+        userResponse(orders, identifier: "orders_result")
+      }
+      DemoTextField("Order ID", text: $orderIdInput)
         .textInputAutocapitalization(.never)
+        .focused($focusedOrderField, equals: .oid)
+        .submitLabel(.done)
+        .onSubmit { focusedOrderField = nil }
       Button("Query by OID") {
         Task { await queryOrderByOid() }
       }
-      .disabled(orderIdInput.isEmpty)
+      .disabled(!userAddressInput.isValidEthereumAddress || (Int64(orderIdInput).map { $0 >= 0 } != true))
       
       Divider()
       
-      TextField("CLOB ID (cloid)", text: $cloidInput)
+      DemoTextField("CLOB ID (cloid)", text: $cloidInput)
         .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .focused($focusedOrderField, equals: .cloid)
+        .submitLabel(.done)
+        .onSubmit { focusedOrderField = nil }
       Button("Query by CLOB ID") {
         Task { await queryOrderByCloid() }
       }
-      .disabled(cloidInput.isEmpty)
+      .disabled(!userAddressInput.isValidEthereumAddress || !cloidInput.hasPrefix("0x") || cloidInput.count != 34 || !cloidInput.isValidHex)
     }
   }
-  
+
   @ViewBuilder
   private var metadataSection: some View {
     Section("Meta (Perpetual)") {
       if let meta = meta {
+        Text("Loaded \(meta.universe.count) perpetual markets")
+          .accessibilityIdentifier("perpetual_meta_result")
+        DisclosureGroup("Market details") {
         ForEach(meta.universe.prefix(10)) { asset in
           VStack(alignment: .leading, spacing: 2) {
             Text(asset.name)
               .font(.headline)
-            Text("Asset #\(asset.asset) | Sz: \(asset.szDecimals) | Wei: \(asset.weiDecimals)")
+            Text("Asset #\(asset.asset) | Sz: \(asset.szDecimals) | Wei: \(asset.weiDecimals.map(String.init) ?? "—")")
               .font(.caption)
               .foregroundStyle(.secondary)
             if asset.onlyIsolatedMargin {
@@ -337,6 +344,7 @@ struct InfoView: View {
           Text("... and \(meta.universe.count - 10) more")
             .foregroundStyle(.secondary)
         }
+        }
       }
       Button("Load Meta") {
         Task { await loadMeta() }
@@ -345,6 +353,9 @@ struct InfoView: View {
     
     Section("Spot Meta") {
       if let meta = spotMeta {
+        Text("Loaded \(meta.universe.count) spot markets")
+          .accessibilityIdentifier("spot_meta_result")
+        DisclosureGroup("Market details") {
         ForEach(Array(meta.universe.prefix(10)), id: \.id) { asset in
           VStack(alignment: .leading, spacing: 2) {
             Text(asset.name)
@@ -360,6 +371,7 @@ struct InfoView: View {
           Text("... and \(meta.universe.count - 10) more")
             .foregroundStyle(.secondary)
         }
+        }
       }
       Button("Load Spot Meta") {
         Task { await loadSpotMeta() }
@@ -367,24 +379,29 @@ struct InfoView: View {
     }
     
     Section("Builder Fee") {
-      TextField("Builder Address", text: $builderAddressInput)
+      DemoTextField("Builder Address", text: $builderAddressInput)
         .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .focused($focusedOrderField, equals: .builder)
+        .submitLabel(.done)
+        .onSubmit { focusedOrderField = nil }
       if let fee = builderFee {
         VStack(alignment: .leading, spacing: 4) {
           Text(fee.builderAddress)
             .font(.caption)
             .foregroundStyle(.secondary)
-          Text("Fee: \(fee.feeBps) bps")
+          Text("Fee: \(String(format: "%.1f", fee.feeBps)) bps")
+            .accessibilityIdentifier("builder_fee_result")
             .font(.headline)
         }
       }
       Button("Fetch Builder Fee") {
         Task { await fetchBuilderFee() }
       }
-      .disabled(builderAddressInput.isEmpty)
+      .disabled(!builderAddressInput.hasPrefix("0x") || !builderAddressInput.isValidEthereumAddress)
     }
   }
-  
+
   private func refreshCurrentSection() async {
     switch selectedSection {
     case .marketData:
@@ -403,143 +420,144 @@ struct InfoView: View {
       await loadSpotMeta()
     }
   }
-  
+
+  private func userResponse<T: Encodable>(_ response: T, identifier: String) -> some View {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    let text = (try? encoder.encode(response)).map { String(decoding: $0, as: UTF8.self) } ?? ""
+    return DisclosureGroup {
+      ScrollView {
+        Text(text).font(.system(.caption, design: .monospaced))
+          .textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+          .accessibilityIdentifier(identifier)
+      }.frame(height: 200)
+    } label: {
+      Text("Response details").accessibilityIdentifier(identifier + "_details")
+    }
+  }
+
+  private func performInfoRequest(_ operation: () async throws -> Void) async {
+    guard !isLoading, sdkManager.client != nil else { return }
+    isLoading = true
+    errorMessage = nil
+    defer { isLoading = false }
+
+    do {
+      try await operation()
+    } catch {
+      let displayedError: String
+      if let heliqError = error as? any HeliqError {
+        displayedError = "\(heliqError.errorCode): \(heliqError.errorDescription)"
+      } else {
+        displayedError = error.localizedDescription
+      }
+      errorMessage = displayedError
+      Logger.shared.error("info-ui-error message=\(displayedError)", category: .general)
+    }
+  }
+
   private func loadAllMids() async {
-    do {
+    await performInfoRequest {
       allMids = try await sdkManager.sdk.info.getAllMids()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func loadAssetCtxs() async {
-    do {
+    await performInfoRequest {
       assetCtxs = try await sdkManager.sdk.info.getAssetCtxs()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func loadSpotAssetCtxs() async {
-    do {
+    await performInfoRequest {
       spotAssetCtxs = try await sdkManager.sdk.info.getSpotAssetCtxs()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func loadL2Book() async {
     guard !selectedCoin.isEmpty else { return }
-    do {
+    await performInfoRequest {
       l2Book = try await sdkManager.sdk.info.getL2Book(coin: selectedCoin.uppercased())
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func loadCandles() async {
     guard !candleCoinInput.isEmpty else { return }
     let endTime = Date()
     let startTime = endTime.addingTimeInterval(-3600 * 24)
-    do {
+    await performInfoRequest {
       candles = try await sdkManager.sdk.info.getCandleSnapshot(
         coin: candleCoinInput.uppercased(),
         interval: candleInterval,
         startTime: startTime,
         endTime: endTime
       )
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
-  private func getTime() async {
-    do {
-      serverTime = try await sdkManager.sdk.info.getTime()
-    } catch {
-      errorMessage = error.localizedDescription
-    }
-  }
-  
+
   private func loadUserState() async {
     guard !userAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       userState = try await sdkManager.sdk.info.getUserState(address: userAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func loadSpotUserState() async {
     guard !userAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       spotUserState = try await sdkManager.sdk.info.getSpotUserState(address: userAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func loadFills() async {
     guard !userAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       fills = try await sdkManager.sdk.info.queryFills(address: userAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func loadUserFundings() async {
     guard !userAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       userFundings = try await sdkManager.sdk.info.queryUserFundings(address: userAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func queryOrderByOid() async {
-    guard !orderIdInput.isEmpty else { return }
-    do {
-      orders = try await sdkManager.sdk.info.queryOrderByOid(orderId: orderIdInput)
-    } catch {
-      errorMessage = error.localizedDescription
+    guard let oid = Int64(orderIdInput), oid >= 0 else { return }
+    await performInfoRequest {
+      orders = nil
+      orders = try await sdkManager.sdk.info.queryOrderByOid(orderId: String(oid), address: userAddressInput)
     }
   }
-  
+
   private func queryOrderByCloid() async {
     guard !cloidInput.isEmpty else { return }
-    do {
-      orders = try await sdkManager.sdk.info.queryOrderByCloid(cloid: cloidInput)
-    } catch {
-      errorMessage = error.localizedDescription
+    await performInfoRequest {
+      orders = nil
+      orders = try await sdkManager.sdk.info.queryOrderByCloid(cloid: cloidInput, address: userAddressInput)
     }
   }
-  
+
   private func loadMeta() async {
-    do {
+    await performInfoRequest {
       meta = try await sdkManager.sdk.info.getMeta()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func loadSpotMeta() async {
-    do {
+    await performInfoRequest {
       spotMeta = try await sdkManager.sdk.info.getSpotMeta()
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func fetchBuilderFee() async {
     guard !builderAddressInput.isEmpty else { return }
-    do {
+    await performInfoRequest {
       builderFee = try await sdkManager.sdk.info.fetchBuilderFee(builderAddress: builderAddressInput)
-    } catch {
-      errorMessage = error.localizedDescription
     }
   }
-  
+
   private func formatDate(_ date: Date) -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"

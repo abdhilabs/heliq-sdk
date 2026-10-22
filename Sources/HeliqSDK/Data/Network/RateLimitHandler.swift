@@ -7,12 +7,14 @@
 
 import Foundation
 
+/// Coordinates access to rate limit handler state.
 public actor RateLimitHandler {
   private let requestsPerWindow: Int
   private let windowDuration: TimeInterval
   private var tokens: Int
   private var lastRefill: Date
   
+  /// Creates a rate limit handler.
   public init(
     requestsPerWindow: Int = Constants.RateLimiting.defaultRequestsPerWindow,
     windowDuration: TimeInterval = Constants.RateLimiting.defaultWindowDuration
@@ -23,6 +25,7 @@ public actor RateLimitHandler {
     self.lastRefill = Date()
   }
   
+  /// Performs the wait for token operation.
   public func waitForToken(endpoint: String) async throws {
     refillTokens()
     
@@ -47,6 +50,7 @@ public actor RateLimitHandler {
     }
   }
   
+  /// Performs the reset operation.
   public func reset() {
     tokens = requestsPerWindow
     lastRefill = Date()

@@ -14,7 +14,7 @@ final class MockWalletService: WalletServiceProtocol, @unchecked Sendable {
   private let privateKey: String
   
   init() {
-    self.address = "0xDemoWalletAddress1234567890ABCDEF"
+    self.address = "0x1be31a94361a391bbafb2a4ccd704f57dc04d4bb"
     self.privateKey = "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
   }
   
