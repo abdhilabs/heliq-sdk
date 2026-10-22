@@ -128,6 +128,8 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
   private let wallet: (any WalletServiceProtocol)?
   static let nonces = ExchangeNonce()
 
+  /// Creates an exchange repository backed by the client, transaction builder, and optional wallet.
+  /// Signed submissions fail explicitly when no wallet is configured.
   public init(
     apiClient: APIClient, transactionBuilder: TransactionBuilder = TransactionBuilder(),
     wallet: (any WalletServiceProtocol)? = nil
@@ -234,12 +236,14 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     throw APIError.invalidResponse
   }
 
+  /// Submits one signed order and throws if the exchange rejects that order.
   public func placeOrder(_ order: OrderRequest) async throws -> OrderResponse {
     let response = try await bulkOrders([order]).responses[0]
     if let error = response.error { throw APIError.hyperliquidError(code: 0, message: error) }
     return response
   }
 
+  /// Submits a nonempty signed batch, preserving each order's rejection or execution status.
   public func bulkOrders(_ orders: [OrderRequest]) async throws -> BulkOrderResponse {
     _ = try requireWallet()
     guard !orders.isEmpty else { throw ValidationError.missingRequiredField(field: "orders") }
@@ -331,6 +335,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return result
   }
 
+  /// Cancels one exchange order ID on the specified asset and preserves any server rejection.
   public func cancelOrder(orderId: String, asset: Int) async throws -> CancelResponse {
     try validateAsset(asset)
     let response = try await submit(
@@ -346,6 +351,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return try cancelResponse(statuses(response, count: 1, type: "cancel")[0])
   }
 
+  /// Cancels one asset's order by its 16-byte hexadecimal client order ID.
   public func cancelByCloid(cloid: String, asset: Int) async throws -> CancelResponse {
     try validateAsset(asset)
     try validateHex(cloid, bytes: 16, field: "cloid")
@@ -366,6 +372,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return .init(status: "success")
   }
 
+  /// Queries the wallet's open orders and cancels them, separating successes from per-order failures.
   public func cancelAll() async throws -> CancelAllResponse {
     let wallet = try requireWallet()
     let orders = try await HyperliquidAPI(apiClient: apiClient).openOrders(user: wallet.address)
@@ -398,12 +405,14 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return .init(cancelledOrders: cancelled, failedCancels: failed)
   }
 
+  /// Changes size or price by exchange ID while preserving the existing order's other settings.
   public func modifyOrder(orderId: String, asset: Int, size: Double?, price: Double?) async throws
     -> OrderResponse
   {
     try await modify(oid: .number(try orderID(orderId)), asset: asset, size: size, price: price)
   }
 
+  /// Resolves the active client-ID order before changing size or price; nil fields remain unchanged.
   public func modifyByCloid(cloid: String, asset: Int, size: Double?, price: Double?) async throws
     -> OrderResponse
   {
@@ -514,6 +523,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
         ])))
   }
 
+  /// Sets positive leverage while retaining the asset's current cross or isolated margin mode.
   public func setLeverage(asset: Int, leverage: Int) async throws -> SetLeverageResponse {
     let state = try await leverageState(asset: asset)
     try await updateLeverage(
@@ -521,6 +531,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return .init(status: "ok", leverage: leverage)
   }
 
+  /// Changes cross or isolated margin mode while retaining the asset's current leverage.
   public func setMarginMode(asset: Int, mode: MarginMode) async throws -> SetMarginModeResponse {
     let state = try await leverageState(asset: asset)
     guard let value = state["value"].number, value >= 1, value <= Double(Int32.max),
@@ -530,6 +541,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return .init(status: "ok")
   }
 
+  /// Transfers from the signing wallet only; asset zero denotes Perps USDC, others Spot token indices.
   public func transfer(fromAddress: String, toAddress: String, amount: Double, asset: Int)
     async throws -> TransferResponse
   {
@@ -577,6 +589,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return .init(status: "ok")
   }
 
+  /// Sends USDC using `usdSend` for standard accounts or `sendAsset` for shared-collateral accounts.
   public func usdSend(destination: String, amount: Double) async throws -> UsdSendResponse {
     try validateHex(destination, bytes: 20, field: "destination")
     _ = try decimal(amount)
@@ -629,6 +642,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
       ], timeKey: "nonce")
   }
 
+  /// Moves USDC into or out of one vault, requiring exactly one direction and six-decimal precision.
   public func vaultTransfer(vaultTransfer: VaultTransfer) async throws -> VaultTransferResponse {
     guard vaultTransfer.fromVault != vaultTransfer.toVault else {
       throw ValidationError.malformedData(reason: "Select exactly one vault transfer direction")
@@ -651,11 +665,13 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return .init(status: "ok")
   }
 
+  /// Rejects approval without a fee limit; use `updateBuilder(builderAddress:maxFeeRate:)` instead.
   public func updateBuilder(builderAddress: String) async throws -> UpdateBuilderResponse {
     throw ValidationError.missingRequiredField(
       field: "maxFeeRate; use updateBuilder(builderAddress:maxFeeRate:)")
   }
 
+  /// Approves a builder with an explicit percentage string from `0%` through `1%`.
   public func updateBuilder(builderAddress: String, maxFeeRate: String) async throws
     -> UpdateBuilderResponse
   {
@@ -675,6 +691,7 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return .init(status: "ok")
   }
 
+  /// Schedules exchange-side cancellation at least five seconds ahead, subject to server eligibility.
   public func scheduleCancel(time: Date) async throws -> ScheduleCancelResponse {
     let milliseconds = time.timeIntervalSince1970 * 1_000
     guard milliseconds.isFinite, milliseconds >= (Date().timeIntervalSince1970 + 5) * 1_000,
@@ -702,11 +719,13 @@ public final class ExchangeRepositoryImpl: ExchangeRepository, @unchecked Sendab
     return .init(status: "ok")
   }
 
+  /// Rejects conversion without explicit signer addresses and a signature threshold.
   public func convertToMultiSigUser() async throws -> ConvertToMultiSigResponse {
     throw ValidationError.missingRequiredField(
       field: "authorizedUsers and threshold; use convertToMultiSigUser(authorizedUsers:threshold:)")
   }
 
+  /// Converts the account using unique signer addresses and a threshold within the signer count.
   public func convertToMultiSigUser(authorizedUsers: [String], threshold: Int) async throws
     -> ConvertToMultiSigResponse
   {

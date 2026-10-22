@@ -23,17 +23,21 @@ public protocol WalletServiceProtocol: Sendable {
   func signUserSigned(primaryType: String, fields: [HyperliquidEIP712Field], action: [String: JSONValue], isMainnet: Bool) async throws -> SignatureTypes
 }
 
+/// Explicit unsupported-signing defaults for wallet adapters that only implement message signing.
 public extension WalletServiceProtocol {
+  /// Throws a signing error unless the wallet adapter implements canonical L1 action signing.
   func signL1(action: CanonicalMessagePack.Object, nonce: Int64, isMainnet: Bool) async throws -> SignatureTypes {
     throw SigningError.signingFailed(reason: "Wallet must implement Hyperliquid L1 signing")
   }
+  /// Throws a signing error unless the wallet adapter implements user-action EIP-712 signing.
   func signUserSigned(primaryType: String, fields: [HyperliquidEIP712Field], action: [String: JSONValue], isMainnet: Bool) async throws -> SignatureTypes {
     throw SigningError.signingFailed(reason: "Wallet must implement Hyperliquid EIP-712 signing")
   }
 }
 
+/// Compatibility signing for object payloads without vault or expiration context.
 public extension WalletServiceProtocol {
-  /// Signs a canonical L1 payload with the selected network, vault, and expiration context.
+  /// Delegates a plain object to `signL1`; rejects arrays, vault context, and expiration context.
   func signL1Payload(_ payload: CanonicalMessagePack.Value, nonce: Int64,
     vaultAddress: String?, expiresAfter: Int64?, isMainnet: Bool) async throws -> SignatureTypes {
     guard case .object(let action) = payload, vaultAddress == nil, expiresAfter == nil else {

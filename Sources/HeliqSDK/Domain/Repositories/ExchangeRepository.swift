@@ -60,10 +60,13 @@ public protocol ExchangeRepository: Sendable {
   func usdSend(destination: String, amount: Double) async throws -> UsdSendResponse
 }
 
+/// Defaults that reject permission-changing operations unsupported by a custom repository.
 public extension ExchangeRepository {
+  /// Throws a validation error unless the repository implements explicit builder-fee approval.
   func updateBuilder(builderAddress: String, maxFeeRate: String) async throws -> UpdateBuilderResponse {
     throw ValidationError.malformedData(reason: "Repository does not implement builder fee approval")
   }
+  /// Throws a validation error unless the repository implements explicit multisig conversion.
   func convertToMultiSigUser(authorizedUsers: [String], threshold: Int) async throws -> ConvertToMultiSigResponse {
     throw ValidationError.malformedData(reason: "Repository does not implement multisig conversion")
   }
@@ -281,6 +284,7 @@ public struct UsdSendResponse: Sendable, Codable {
   }
 }
 
+/// Typed action conveniences and explicit unsupported-operation defaults for custom repositories.
 public extension ExchangeRepository {
   /// Reports unsupported functionality unless a custom repository implements this typed operation.
   func executePerps(_ action: PerpsAction, context: PerpsExecutionContext) async throws -> PerpsActionResult {
@@ -307,6 +311,7 @@ public extension ExchangeRepository {
   }
 }
 
+/// Multisig preparation and signing defaults that require an implementation from the repository.
 public extension ExchangeRepository {
   /// Reports unsupported functionality unless a custom repository implements this typed operation.
   func preparePerpsMultisig(action: PerpsAction, user: String, leader: String, nonce: Int64,

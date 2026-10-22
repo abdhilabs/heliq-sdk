@@ -7,8 +7,11 @@
 
 import Foundation
 
+/// One participant's signature over an already prepared multisig payload.
 public struct PerpsMultisigSignature: Sendable {
+  /// Participant address used to reject duplicate signers during submission.
   public let signer: String
+  /// Signature components; submission checks component format, not signer recovery or authority.
   public let signature: SignatureTypes
   /// Associates a signer address with its signature over the prepared multisig payload.
   public init(signer: String, signature: SignatureTypes) {
@@ -18,16 +21,24 @@ public struct PerpsMultisigSignature: Sendable {
 }
 /// Resolved once so market prices and position size cannot change between signatures.
 public struct PerpsMultisigPayload: Sendable {
+  /// Multisig account address, normalized to lowercase during preparation.
   public let user: String
+  /// Outer submitter address; execution requires this account's configured wallet.
   public let leader: String
+  /// Original typed request; signing and submission use its frozen internal prepared form.
   public let action: PerpsAction
+  /// Positive protocol nonce shared by all participant signatures and the outer envelope.
   public let nonce: Int64
+  /// Frozen vault and expiration settings; user-signed variants require both to be nil.
   public let context: PerpsExecutionContext
   let prepared: PreparedPerpsAction
   let environment: HeliqEnvironment
 }
+/// A prepared payload and collected participant signatures for submission by its leader.
 public struct PerpsMultisigRequest: Sendable {
+  /// Immutable prepared action, nonce, context, and network binding to submit.
   public let payload: PerpsMultisigPayload
+  /// One to ten signatures with distinct signer addresses; service authorization still applies.
   public let signatures: [PerpsMultisigSignature]
   /// Collects signatures for one immutable prepared payload without changing its nonce or context.
   public init(payload: PerpsMultisigPayload, signatures: [PerpsMultisigSignature]) {
@@ -41,6 +52,7 @@ public struct PerpsMultisigRequest: Sendable {
   var context: PerpsExecutionContext { payload.context }
 }
 
+/// Preparation, participant signing, and leader submission of typed multisig actions.
 extension ExchangeRepositoryImpl {
   /// Freezes the resolved action, network, nonce, and context so every signer signs identical
   /// bytes.

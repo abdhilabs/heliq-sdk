@@ -201,6 +201,7 @@ public struct BuilderFee: Sendable, Codable {
   }
 }
 
+/// Typed Perps compatibility defaults and coin-specific trading-capacity convenience queries.
 public extension InfoRepository {
   /// Reports unsupported functionality unless a custom repository implements this typed operation.
   func perps<Response: Sendable>(_ query: PerpsQuery<Response>) async throws -> Response {
@@ -216,6 +217,7 @@ public extension InfoRepository {
   }
 }
 
+/// Explicit rejection of DEX-scoped balances when a custom repository does not implement them.
 public extension InfoRepository {
   /// Reports unsupported functionality unless a custom repository implements this typed operation.
   func getBalances(address: String, dexes: [String]) async throws -> AccountBalances {

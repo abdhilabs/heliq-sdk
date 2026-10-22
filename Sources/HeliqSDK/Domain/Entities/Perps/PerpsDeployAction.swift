@@ -7,12 +7,26 @@
 
 import Foundation
 
-public enum PerpsDeployedMarginMode: String, Sendable { case normal, strictIsolated, noCross }
+/// Margin policy encoded by current HIP-3 registration and margin-mode updates.
+public enum PerpsDeployedMarginMode: String, Sendable {
+  /// Normal margin policy, permitting cross margin.
+  case normal
+  /// Isolated margin policy that also rejects isolated-margin withdrawals in the SDK.
+  case strictIsolated
+  /// Disallows cross margin without selecting strict-isolated policy.
+  case noCross
+}
+/// Initial parameters for a HIP-3 perpetual asset; validation occurs during payload preparation.
 public struct PerpsAssetRegistration: Sendable {
+  /// Nonempty protocol coin name for registration.
   public let coin: String
+  /// Allowed size decimal places, from 0 through 8 inclusive.
   public let sizeDecimals: Int
+  /// Positive initial oracle price, encoded as an exact decimal string.
   public let oraclePrice: Decimal
+  /// Positive margin-table identifier.
   public let marginTableID: Int
+  /// Margin policy; legacy registration reduces this to an isolated-only Boolean.
   public let marginMode: PerpsDeployedMarginMode
   /// Defines a market’s initial precision, oracle price, margin table, and margin mode.
   public init(
@@ -26,9 +40,13 @@ public struct PerpsAssetRegistration: Sendable {
     self.marginMode = marginMode
   }
 }
+/// Schema supplied when registering a new HIP-3 DEX alongside an asset.
 public struct PerpsDexSchema: Sendable {
+  /// Nonempty display name for the DEX.
   public let fullName: String
+  /// Nonnegative collateral token index, not a decimal token amount.
   public let collateralToken: Int
+  /// Optional authorized oracle updater address, normalized to lowercase on encoding.
   public let oracleUpdater: String?
   /// Defines the DEX display name, collateral token index, and optional oracle updater.
   public init(fullName: String, collateralToken: Int, oracleUpdater: String? = nil) {
@@ -37,8 +55,12 @@ public struct PerpsDexSchema: Sendable {
     self.oracleUpdater = oracleUpdater
   }
 }
+/// Associates a coin with a deployment value. Tuple lists require unique, nonempty coin names
+/// and are sorted by coin when encoded.
 public struct PerpsCoinValue<Value: Sendable>: Sendable {
+  /// Protocol coin name, including its DEX prefix where applicable.
   public let coin: String
+  /// Setting whose units and allowed range depend on the deployment operation.
   public let value: Value
   /// Associates a metadata coin name with one deployment setting.
   public init(_ coin: String, _ value: Value) {
@@ -46,15 +68,48 @@ public struct PerpsCoinValue<Value: Sendable>: Sendable {
     self.value = value
   }
 }
+/// Protocol deployment variants that can be granted to or revoked from a sub-deployer.
 public enum PerpsDeployPermission: String, Sendable, CaseIterable {
-  case registerAsset2, registerAsset, setOracle, setFundingMultipliers, setFundingInterestRates
-  case setFundingClamps, haltTrading, insertMarginTable, setMarginTableIds, setFeeRecipient
-  case setOpenInterestCaps, setSubDeployers, setMarginModes, setDeployerFees, setPerpAnnotation,
-    disableDex
+  /// Current asset registration with an explicit margin mode.
+  case registerAsset2
+  /// Legacy asset registration with an isolated-only flag.
+  case registerAsset
+  /// Oracle, mark, and external price updates.
+  case setOracle
+  /// Per-coin funding multiplier updates.
+  case setFundingMultipliers
+  /// Per-coin funding interest-rate updates.
+  case setFundingInterestRates
+  /// Per-coin funding clamp updates.
+  case setFundingClamps
+  /// Trading halt or resume requests.
+  case haltTrading
+  /// Insertion of a DEX margin table.
+  case insertMarginTable
+  /// Assignment of margin-table IDs to coins.
+  case setMarginTableIds
+  /// DEX fee-recipient changes.
+  case setFeeRecipient
+  /// Per-coin open-interest cap updates.
+  case setOpenInterestCaps
+  /// Sub-deployer permission changes.
+  case setSubDeployers
+  /// Per-coin margin-mode changes.
+  case setMarginModes
+  /// Per-coin deployer fee settings.
+  case setDeployerFees
+  /// Perpetual market annotation changes.
+  case setPerpAnnotation
+  /// DEX disable requests.
+  case disableDex
 }
+/// One permission grant or revocation within a sub-deployer update.
 public struct PerpsSubDeployer: Sendable {
+  /// Deployment variant controlled by this entry.
   public let permission: PerpsDeployPermission
+  /// Sub-deployer address, validated and lowercased during encoding.
   public let address: String
+  /// Whether to grant (`true`) or revoke (`false`) the permission.
   public let allowed: Bool
   /// Grants or revokes one deployment permission for the specified address.
   public init(permission: PerpsDeployPermission, address: String, allowed: Bool) {
@@ -63,8 +118,11 @@ public struct PerpsSubDeployer: Sendable {
     self.allowed = allowed
   }
 }
+/// Deployer fee configuration, validated when encoded rather than at initialization.
 public struct PerpsDeployerFee: Sendable {
+  /// Nonnegative scale: at most 3 normally, or strictly below 10 in growth mode.
   public let scale: Decimal
+  /// Enables the protocol growth-mode fee setting and its alternative scale bound.
   public let growthMode: Bool
   /// Defines a deployer fee scale and whether its growth mode is enabled.
   public init(scale: Decimal, growthMode: Bool) {
@@ -72,8 +130,11 @@ public struct PerpsDeployerFee: Sendable {
     self.growthMode = growthMode
   }
 }
+/// A margin tier using the protocol's raw integer bound without SDK unit conversion.
 public struct PerpsRawMarginTier: Sendable {
+  /// Raw nonnegative protocol lower bound; the first tier must start at zero.
   public let lowerBound: Int64
+  /// Maximum leverage from 1 through 50, decreasing as successive bounds increase.
   public let maxLeverage: Int
   /// Defines a margin tier’s integer lower bound and maximum leverage.
   public init(lowerBound: Int64, maxLeverage: Int) {
@@ -81,30 +142,51 @@ public struct PerpsRawMarginTier: Sendable {
     self.maxLeverage = maxLeverage
   }
 }
-/// Current HIP-3 deployment variants, with no arbitrary JSON payloads.
+/// Signed HIP-3 deployment variants, with no arbitrary JSON payloads. The SDK validates payload
+/// shape and supported ranges; the service decides whether the signer has deployment authority.
 public enum PerpsDeployAction: Sendable {
+  /// Registers an asset, optionally with a new DEX schema and nonnegative gas cap. With a schema,
+  /// the DEX name must be 2...4 lowercase letters. Legacy mode uses `registerAsset` rather than
+  /// `registerAsset2` and encodes nonnormal margin modes as isolated-only.
   case registerAsset(
     dex: String, asset: PerpsAssetRegistration, schema: PerpsDexSchema?, maxGas: Int64?,
     legacy: Bool = false)
+  /// Updates positive exact decimal prices for a nonempty DEX. At most two mark-price lists
+  /// are accepted; each supplied coin/value list must be nonempty and unique by coin.
   case oracle(
     dex: String, oraclePrices: [PerpsCoinValue<Decimal>], markPrices: [[PerpsCoinValue<Decimal>]],
     externalPrices: [PerpsCoinValue<Decimal>])
+  /// Sets per-coin funding multipliers in the inclusive range 0...10.
   case fundingMultipliers([PerpsCoinValue<Decimal>])
+  /// Sets raw protocol funding interest rates in the inclusive range -0.01...0.01.
   case fundingInterestRates([PerpsCoinValue<Decimal>])
+  /// Sets raw protocol funding clamps in the inclusive range 0...0.01.
   case fundingClamps([PerpsCoinValue<Decimal>])
+  /// Halts trading for a coin, or resumes it when `halted` is false.
   case halt(coin: String, halted: Bool)
+  /// Inserts 1...3 tiers starting at zero, with strictly increasing bounds and decreasing leverage.
   case insertMarginTable(dex: String, description: String, tiers: [PerpsRawMarginTier])
+  /// Assigns positive margin-table IDs to coins.
   case marginTableIDs([PerpsCoinValue<Int>])
+  /// Sets the DEX fee-recipient address, normalized to lowercase during encoding.
   case feeRecipient(dex: String, address: String)
+  /// Sets raw integer protocol OI caps, each at least 1,000,000, or encodes nil as protocol null.
   case openInterestCaps([PerpsCoinValue<Int64?>])
+  /// Grants or revokes the listed deployment permissions for addresses on a DEX.
   case subDeployers(dex: String, users: [PerpsSubDeployer])
+  /// Assigns explicit margin policies to coins.
   case marginModes([PerpsCoinValue<PerpsDeployedMarginMode>])
+  /// Sets per-coin fee scales and growth-mode flags.
   case deployerFees([PerpsCoinValue<PerpsDeployerFee>])
+  /// Updates market text: category ≤15, description ≤400, display name ≤9 characters;
+  /// at most two keywords of ≤10 characters each. Nil display name encodes protocol null.
   case annotation(
     coin: String, category: String, description: String, displayName: String?, keywords: [String])
+  /// Requests disabling the named DEX.
   case disableDex(String)
 }
 
+/// Canonical payload preparation for typed HIP-3 deployment operations.
 extension PerpsDeployAction {
   /// Validates deployment parameters and builds the ordered `perpDeploy` action payload.
   func wire() throws -> CanonicalMessagePack.Object {

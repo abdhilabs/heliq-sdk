@@ -29,9 +29,11 @@ public final class WalletService: WalletServiceProtocol, @unchecked Sendable {
     try await keyManager.signL1Payload(payload, nonce: nonce, vaultAddress: vaultAddress,
       expiresAfter: expiresAfter, isMainnet: isMainnet)
   }
+  /// Delegates canonical L1 action signing to the key manager for the selected network and nonce.
   public func signL1(action: CanonicalMessagePack.Object, nonce: Int64, isMainnet: Bool) async throws -> SignatureTypes {
     try await keyManager.signL1(action: action, nonce: nonce, isMainnet: isMainnet)
   }
+  /// Signs a user action using the caller's EIP-712 primary type and ordered field schema.
   public func signUserSigned(primaryType: String, fields: [HyperliquidEIP712Field], action: [String: JSONValue], isMainnet: Bool) async throws -> SignatureTypes {
     try await keyManager.signUserSigned(primaryType: primaryType, fields: fields, action: action, isMainnet: isMainnet)
   }
@@ -96,10 +98,12 @@ public final class KeyManager: @unchecked Sendable {
     return try await signer.signL1Payload(payload, nonce: nonce, vaultAddress: vaultAddress,
       expiresAfter: expiresAfter, isMainnet: isMainnet)
   }
+  /// Signs a canonical L1 action, throwing `keyNotFound` when no native signer is configured.
   public func signL1(action: CanonicalMessagePack.Object, nonce: Int64, isMainnet: Bool) async throws -> SignatureTypes {
     guard let signer else { throw SigningError.keyNotFound }
     return try await signer.signL1(action: action, nonce: nonce, isMainnet: isMainnet)
   }
+  /// Signs the supplied EIP-712 action schema, throwing `keyNotFound` without a native signer.
   public func signUserSigned(primaryType: String, fields: [HyperliquidEIP712Field], action: [String: JSONValue], isMainnet: Bool) async throws -> SignatureTypes {
     guard let signer else { throw SigningError.keyNotFound }
     return try await signer.signUserSigned(primaryType: primaryType, fields: fields, action: action, isMainnet: isMainnet)

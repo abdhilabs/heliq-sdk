@@ -13,6 +13,7 @@ import Foundation
 /// HIP-3 markets use their registered DEX name and exact prefixed metadata coin name.
 /// Account queries take the account address, rather than an approved agent’s address.
 public struct PerpsQuery<Response: Sendable>: Sendable {
+  /// The endpoint and lossless parameters bound to this query's typed response decoder.
   public let request: HyperliquidInfoRequest
   private let decodeResponse: @Sendable (Data) throws -> Response
   /// Binds an info endpoint and its parameters to a concrete response decoder.
