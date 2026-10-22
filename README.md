@@ -18,7 +18,7 @@ subscriptions on iOS and macOS. Uses Swift 6.1 and async/await.
 
 - Swift 6.1 or later; Xcode 16.3 or later.
 - iOS 16 or macOS 13 and later for the SDK.
-- iOS 17 or later for the sample app.
+- iOS 16 or later for the sample app.
 
 ## Installation
 

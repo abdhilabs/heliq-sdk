@@ -15,7 +15,7 @@ struct HeliqSDKDemoApp: App {
 
 struct ContentView: View {
   @State private var tab = 0
-  private var manager: SDKManager { .shared }
+  @ObservedObject private var manager = SDKManager.shared
 
   var body: some View {
     TabView(selection: $tab) {

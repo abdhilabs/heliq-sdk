@@ -10,7 +10,7 @@ import SwiftUI
 import UIKit
 
 struct DemoStatus: View {
-  var manager = SDKManager.shared
+  @ObservedObject var manager = SDKManager.shared
   var body: some View {
     Label(
       manager.isInitialized

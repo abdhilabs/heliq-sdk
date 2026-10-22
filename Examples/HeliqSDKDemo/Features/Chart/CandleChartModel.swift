@@ -5,18 +5,18 @@
 //  Created by Abdhilabs on 17/10/26.
 //
 
+import Combine
 import Foundation
 import HeliqSDK
-import Observation
 
 /// Owns one screen's candle stream using the SDK transport, typed routing, and query APIs.
-@MainActor @Observable
-final class CandleChartModel {
-  private(set) var buffer = CandleBuffer(coin: "", interval: .minute)
-  private(set) var status = "Disconnected"
-  private(set) var error: String?
-  private(set) var lastUpdate: Date?
-  private(set) var updateCount = 0
+@MainActor
+final class CandleChartModel: ObservableObject {
+  @Published private(set) var buffer = CandleBuffer(coin: "", interval: .minute)
+  @Published private(set) var status = "Disconnected"
+  @Published private(set) var error: String?
+  @Published private(set) var lastUpdate: Date?
+  @Published private(set) var updateCount = 0
   private var streamCurrent = false
   private var generation = UUID()
   private var historyTask: Task<Void, Never>?

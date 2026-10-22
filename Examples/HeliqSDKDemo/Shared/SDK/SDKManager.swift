@@ -5,24 +5,24 @@
 //  Created by Abdhilabs on 05/04/26.
 //
 
+import Combine
 import Foundation
 import HeliqSDK
 import SwiftUI
 
-@Observable
-final class SDKManager: @unchecked Sendable {
+final class SDKManager: ObservableObject, @unchecked Sendable {
   static let shared = SDKManager()
   
-  private(set) var isInitialized: Bool = false
-  private(set) var currentEnvironment: HeliqEnvironment = .mainnet
-  private(set) var initializationError: String?
-  private(set) var walletAddress: String?
+  @Published private(set) var isInitialized: Bool = false
+  @Published private(set) var currentEnvironment: HeliqEnvironment = .mainnet
+  @Published private(set) var initializationError: String?
+  @Published private(set) var walletAddress: String?
   
   private var wallet: (any WalletServiceProtocol)?
   
   private init() {}
   
-  private(set) var client: HeliqClient?
+  @Published private(set) var client: HeliqClient?
   var sdk: HeliqClient {
     guard let client else {
       preconditionFailure("Initialize the demo client before accessing SDK services.")

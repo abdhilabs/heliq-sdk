@@ -63,6 +63,7 @@ enum PerpsSheet: String, Identifiable {
 }
 
 struct PerpsTradingView: View {
+  @ObservedObject private var sdkManager = SDKManager.shared
   var initialSheet: PerpsSheet? = nil
   @Environment(\.dismiss) private var dismiss
   @Environment(\.dynamicTypeSize) private var textSize
@@ -100,10 +101,10 @@ struct PerpsTradingView: View {
   @State private var readID = UUID()
 
   private var address: String? {
-    DemoScenario.current != nil ? DemoScenario.address : SDKManager.shared.walletAddress
+    DemoScenario.current != nil ? DemoScenario.address : sdkManager.walletAddress
   }
   private var requestKey: String {
-    "\(String(describing: SDKManager.shared.client.map(ObjectIdentifier.init)))|\(String(describing: SDKManager.shared.currentEnvironment))|\(address ?? "")|\(dex)|\(coin)|\(revision)"
+    "\(String(describing: sdkManager.client.map(ObjectIdentifier.init)))|\(String(describing: sdkManager.currentEnvironment))|\(address ?? "")|\(dex)|\(coin)|\(revision)"
   }
   private var asset: PerpsAsset? { marketData?.meta.universe.first { $0.name == coin } }
   private var context: PerpsAssetContext? {
@@ -119,7 +120,7 @@ struct PerpsTradingView: View {
     } ?? []
   }
   private var canSign: Bool {
-    DemoScenario.current != nil || SDKManager.shared.currentEnvironment == .testnet
+    DemoScenario.current != nil || sdkManager.currentEnvironment == .testnet
   }
 
   var body: some View {
@@ -146,7 +147,7 @@ struct PerpsTradingView: View {
       }
     }
     .interactiveDismissDisabled(busy)
-    .onChange(of: coin) { _, _ in
+    .onChange(of: coin) { _ in
       size = ""
       price = ""
       trigger = ""
@@ -154,7 +155,7 @@ struct PerpsTradingView: View {
       result = nil
       error = nil
     }
-    .onChange(of: dex) { _, _ in
+    .onChange(of: dex) { _ in
       size = ""
       price = ""
       trigger = ""
@@ -515,7 +516,7 @@ struct PerpsTradingView: View {
   /// Reads a typed endpoint from synthetic UI data or the existing connected SDK client.
   @MainActor private func read<T>(_ query: PerpsQuery<T>) async throws -> T {
     if let scenario = DemoScenario.current { return try scenario.response(query) }
-    guard let client = SDKManager.shared.client else { throw CancellationError() }
+    guard let client = sdkManager.client else { throw CancellationError() }
     return try await client.info.perps(query)
   }
 
@@ -542,7 +543,7 @@ struct PerpsTradingView: View {
       let nextBalances: AccountBalances
       if let scenario = DemoScenario.current {
         nextBalances = try scenario.balances()
-      } else if let client = SDKManager.shared.client {
+      } else if let client = sdkManager.client {
         nextBalances = try await client.info.getBalances(
           address: address, dexes: dex.isEmpty ? [""] : ["", dex])
       } else {
@@ -638,7 +639,7 @@ struct PerpsTradingView: View {
           : "Sample action validated; no exchange request sent"
         return
       }
-      guard let client = SDKManager.shared.client else {
+      guard let client = sdkManager.client else {
         throw ValidationError.malformedData(reason: "Connect in Settings first")
       }
       let response = try await client.exchange.executePerps(prepared)

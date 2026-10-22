@@ -13,7 +13,7 @@ First public release of HeliqSDK.
   error handling without automatic retries of exchange mutations.
 - Raw Info and Exchange transport and WebSocket subscriptions, messages,
   reconnection, and unsubscribe support.
-- OSLog diagnostics, an iOS sample app, and published DocC documentation.
+- OSLog diagnostics, an iOS 16-compatible sample app, and published DocC documentation.
 - Fixed the documentation homepage redirect and updated examples to use
   `HeliqClient`.
 - Fixed `getTime()` to use the exchange timestamp in a BTC order-book snapshot;
@@ -21,7 +21,7 @@ First public release of HeliqSDK.
 
 ### Requirements
 
-Swift 6.1+, iOS 16+, or macOS 13+. The sample app requires iOS 17+.
+Swift 6.1+, iOS 16+, or macOS 13+. The sample app also supports iOS 16+.
 
 ### Coverage boundaries
 

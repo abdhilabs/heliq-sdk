@@ -16,7 +16,7 @@ struct TradingView: View {
   @State private var threshold = ""
   @State private var errorMessage: String?
   
-  private let sdkManager = SDKManager.shared
+  @ObservedObject private var sdkManager = SDKManager.shared
   
   enum TradingSection: String, CaseIterable {
     case orders = "Orders"
