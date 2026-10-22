@@ -68,8 +68,9 @@ struct ContentView: View {
             }
           }
         }
+        .id(manager.isInitialized)
         .navigationTitle("API Explorer").accessibilityIdentifier("api_explorer")
-      }.id(manager.isInitialized).tabItem { Label("API Explorer", systemImage: "curlybraces") }.tag(
+      }.tabItem { Label("API Explorer", systemImage: "curlybraces") }.tag(
         2)
       NavigationStack { SettingsView() }
         .tabItem { Label("Settings", systemImage: "gearshape") }.tag(3)

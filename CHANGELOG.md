@@ -14,6 +14,8 @@ First public release of HeliqSDK.
 - Raw Info and Exchange transport and WebSocket subscriptions, messages,
   reconnection, and unsubscribe support.
 - OSLog diagnostics, an iOS 16-compatible sample app, and published DocC documentation.
+- Fixed a sample-app navigation crash by preserving the API Explorer navigation
+  stack while resetting its connection-dependent content.
 - Fixed the documentation homepage redirect and updated examples to use
   `HeliqClient`.
 - Fixed `getTime()` to use the exchange timestamp in a BTC order-book snapshot;
