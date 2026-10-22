@@ -420,9 +420,14 @@ struct ExchangeRepositoryWireTests {
     let long = String(repeating: "a", count: 42)
     let encoded = try CanonicalMessagePack.encode(
       .init([("value", .string(long)), ("orders", .array(Array(repeating: .null, count: 16)))]))
-    let expected = Data(
-      [0x82, 0xa5] + Array("value".utf8) + [0xd9, 42] + Array(long.utf8) + [0xa6]
-        + Array("orders".utf8) + [0xdc, 0, 16] + Array(repeating: 0xc0, count: 16))
+    var expected = Data([0x82, 0xa5])
+    expected.append(contentsOf: "value".utf8)
+    expected.append(contentsOf: [0xd9, 42])
+    expected.append(contentsOf: long.utf8)
+    expected.append(0xa6)
+    expected.append(contentsOf: "orders".utf8)
+    expected.append(contentsOf: [0xdc, 0, 16])
+    expected.append(Data(repeating: 0xc0, count: 16))
     #expect(encoded == expected)
     #expect(throws: ValidationError.self) {
       try CanonicalMessagePack.encode(.init([("overflow", .number(Double(UInt64.max)))]))
