@@ -1,5 +1,9 @@
 # Getting started
 
+## Install
+
+Add the Swift package at `https://github.com/abdhilabs/heliq-sdk.git`, select version `1.0.0` or later, and link the `HeliqSDK` product. The SDK requires Swift 6.1 or later and supports iOS 16 and macOS 13 or later.
+
 ## Create a client
 
 Create an independent client for your selected environment. Read-only queries do not require a wallet.

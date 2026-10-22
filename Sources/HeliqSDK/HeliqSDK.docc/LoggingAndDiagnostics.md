@@ -3,7 +3,10 @@
 Logging is disabled by default. Configure it during initialization:
 
 ```swift
-builder.logging(.verbose)
+let client = try HeliqClient.Builder()
+  .environment(.testnet)
+  .logging(.verbose)
+  .build()
 ```
 
 ``LogLevel`` is an `OptionSet`:

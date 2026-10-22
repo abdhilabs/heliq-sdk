@@ -86,6 +86,12 @@ jobs:
             "$RUNNER_TEMP/heliq-docs/Build/Products/Debug-iphoneos/HeliqSDK.doccarchive" \
             --output-path _site \
             --hosting-base-path heliq-sdk
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          index = json.loads(Path('_site/index/index.json').read_text())
+          assert index['interfaceLanguages'].get('swift'), 'DocC navigation index is empty'
+          PY
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <html lang="en">
