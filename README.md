@@ -325,7 +325,7 @@ explicit `address` or use the configured wallet, just like order queries.
 
 ## License
 
-MIT
+Licensed under the [MIT License](LICENSE).
 
 ### Available balances and complete typed Perps APIs
 
