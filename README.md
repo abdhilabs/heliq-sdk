@@ -260,8 +260,6 @@ xcodebuild test -project HeliqSDK.xcodeproj -scheme HeliqSDKDemo -destination 'p
 
 Project documentation is gathered in [Docs](Docs/README.md).
 
-See [TEST_PLAN.md](Docs/TEST_PLAN.md) and [PLAN.md](Docs/PLAN.md) for details.
-
 ## Typed user data
 
 The `sdk.info` user-state, spot-balance, fill, funding, and order-query methods use
@@ -334,7 +332,7 @@ The demo's **Typed Perps trading** screen shows balances and buy/sell capacity,
 selects markets from metadata, and provides trading/position/class-transfer controls.
 Administrative/deployment APIs are demonstrated through SDK tests rather than UI forms.
 
-See [typed Perps coverage](Docs/PERPS_API_COVERAGE.md), [verification results](Docs/PERPS_TEST_REPORT.md),
+See [typed Perps coverage](Docs/PERPS_API_COVERAGE.md)
 and [Perps and balances documentation](Sources/HeliqSDK/HeliqSDK.docc/PerpsAndBalances.md).
 
 The sample app provides Overview, Perpetuals, API Explorer, and Settings tabs.

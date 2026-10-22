@@ -105,5 +105,5 @@ source identity cannot safely share one typed router across multiple source
 subscriptions; registration rejects ambiguous combinations. Fast contexts retain
 partial-update semantics and are limited to 4 MiB after decompression.
 
-See the repository's `Docs/PERPS_API_COVERAGE.md` and `Docs/PERPS_TEST_REPORT.md` for the
-complete operation inventory, fixtures, live results, and privileged-operation limits.
+See the repository's `Docs/PERPS_API_COVERAGE.md` for the complete operation inventory,
+fixtures, and privileged-operation limits, and `Docs/TESTNET_WALLET.md` for live test setup.

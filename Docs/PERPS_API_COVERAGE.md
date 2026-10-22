@@ -189,7 +189,7 @@ fits, with a 4 MiB limit. Existing FastAssetCtx String properties remain unchang
 - Signing fixtures: 116 mainnet/testnet vectors generated with official Python SDK
   revision `2fdb18f9517675ea03695a0962bd19eece9c83f0`, using a public test-only key.
   Newer action schemas without dedicated Python helpers use its generic signer.
-- Live results and reproducible commands: `PERPS_TEST_REPORT.md`.
+- Live test prerequisites and opt-in flags: [testnet wallet setup](TESTNET_WALLET.md#running-live-tests).
 - Unknown operations remain available through raw APIs. Validator management, staking
   management, Spot deployment, and HyperEVM contract APIs are outside this Perps scope.
 - Remaining upstream warnings are retained. No dependency, deployment minimum, or wallet

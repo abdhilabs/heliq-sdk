@@ -25,15 +25,14 @@ the import file. An existing different saved wallet is never overwritten silentl
 Keep the ignored local key file as the backup for this testing account.
 
 Once funded, successful order placement, fill, modification, and cancellation can
-be tested with the same SDK signer. Funding alone does not verify those outcomes;
-`TRADING_TEST_REPORT.md` records the checks completed so far.
+be tested with the same SDK signer. Funding alone does not verify those outcomes.
 
 Verified on 2026-10-15: this exact address survives demo disconnect/reconnect and
 process relaunch. The simulator saved key matches the private local backup; its
 permissions are 0600 and the temporary import was removed. The wallet has been
 funded and passed order, position, transfer, and demo trading tests. Its unified
 account uses Spot USDC as collateral, so zero separate Perps account value does
-not mean it cannot trade. See `TRADING_TEST_REPORT.md` for results and cleanup.
+not mean it cannot trade.
 Device Keychain storage compiles but has not been exercised on hardware.
 
 Additional controlled test keys (also ignored, mode 0600):
@@ -46,6 +45,20 @@ Typed Perps testing additionally uses `.local/hyperliquid-testnet-standard.key`
 (address `0x309ef1a1b1c9c0b2321213c1ffd2f74f8bdb8c93`), ignored with permissions
 0600. It is initialized in standard (`disabled`) mode and has zero funds, orders,
 and positions after cleanup. Its temporary simulator import was removed and the
-primary unified wallet restored. Current typed API results and test costs are in
-[PERPS_TEST_REPORT.md](PERPS_TEST_REPORT.md); the older trading report records the
-previous test run.
+primary unified wallet restored.
+
+## Running live tests
+
+Unit fixtures run with `swift test --filter HeliqSDKTests --no-parallel`.
+Live tests are opt-in and must use controlled testnet wallets, never mainnet keys:
+
+- `HELIQ_PERPS_READ_TESTS=1` enables Perps read and WebSocket integration suites.
+- `HELIQ_PERPS_FUNDED_TESTS=1` enables `PerpsFundedIntegrationTests`; run serialized
+  with `--no-parallel`. These tests submit testnet mutations and perform cleanup.
+- `HELIQ_FUNDED_TRADING_TESTS=1` enables `FundedTradingIntegrationTests`; run serialized
+  with `--no-parallel`. Schedule and builder checks also require
+  `HELIQ_APPROVED_ACCOUNT_TESTS=1`.
+- Perps simulator tests require `HELIQ_PERPS_UI_TESTS=1`; standard-wallet flows also
+  require `HELIQ_PERPS_STANDARD_UI_TESTS=1` and deliberate local wallet preparation.
+- Funded trading UI checks use `TEST_RUNNER_HELIQ_FUNDED_UI_TESTS=1` with xcodebuild
+  and `-only-testing:HeliqSDKDemoUITests/HeliqSDKDemoUITests/testFundedTradingPlaceModifyCancel()`.
