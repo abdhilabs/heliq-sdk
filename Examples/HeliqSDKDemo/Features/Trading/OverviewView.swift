@@ -16,7 +16,7 @@ struct OverviewView: View {
   @State private var error: String?
   @State private var transfer = false
   @State private var readID = UUID()
-  private var manager: SDKManager { .shared }
+  @ObservedObject private var manager = SDKManager.shared
   private var address: String? {
     DemoScenario.current != nil ? DemoScenario.address : manager.walletAddress
   }
@@ -37,9 +37,11 @@ struct OverviewView: View {
         Section("Account") {
           Text(address).font(.footnote.monospaced()).textSelection(.enabled)
             .accessibilityIdentifier("overview_wallet")
-          Button("Trade", systemImage: "chart.xyaxis.line", action: onTrade)
+          Button(action: onTrade) { Label("Trade", systemImage: "chart.xyaxis.line") }
             .buttonStyle(.borderedProminent).controlSize(.large)
-          Button("Transfer", systemImage: "arrow.left.arrow.right") { transfer = true }
+          Button { transfer = true } label: {
+            Label("Transfer", systemImage: "arrow.left.arrow.right")
+          }
             .buttonStyle(.bordered).controlSize(.large)
           NavigationLink("Wallet details") { WalletView() }.disabled(DemoScenario.current != nil)
         }

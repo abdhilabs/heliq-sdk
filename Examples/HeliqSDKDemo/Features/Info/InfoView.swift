@@ -37,7 +37,7 @@ struct InfoView: View {
   @State private var candleInterval = "1m"
   @State private var candleCoinInput = "BTC"
 
-  private let sdkManager = SDKManager.shared
+  @ObservedObject private var sdkManager = SDKManager.shared
 
   enum InfoSection: String, CaseIterable {
     case marketData = "Market Data"

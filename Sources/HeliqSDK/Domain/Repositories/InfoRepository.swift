@@ -47,7 +47,7 @@ public protocol InfoRepository: Sendable {
   func getMeta() async throws -> Meta
   /// Performs the get spot meta repository operation.
   func getSpotMeta() async throws -> Meta
-  /// Performs the get time repository operation.
+  /// Returns the exchange timestamp of the latest BTC order-book snapshot.
   func getTime() async throws -> Date
   /// Performs the fetch builder fee repository operation.
   func fetchBuilderFee(builderAddress: String) async throws -> BuilderFee

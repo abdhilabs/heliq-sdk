@@ -17,12 +17,13 @@ struct StreamingCandleChartView: View {
   @Environment(\.dynamicTypeSize) private var textSize
   @Environment(\.verticalSizeClass) private var verticalSize
   @State private var interval: PerpsCandleInterval = .minute
-  @State private var model = CandleChartModel()
+  @StateObject private var model = CandleChartModel()
+  @ObservedObject private var sdkManager = SDKManager.shared
   @State private var revision = 0
   @State private var rendered = false
   @State private var renderError: String?
   private var key: String {
-    let identity = String(describing: SDKManager.shared.client.map(ObjectIdentifier.init))
+    let identity = String(describing: sdkManager.client.map(ObjectIdentifier.init))
     return "\(identity)|\(coin)|\(interval)|\(revision)"
   }
 
@@ -103,10 +104,10 @@ struct StreamingCandleChartView: View {
         }.frame(maxHeight: 180)
       }.font(.caption)
     }
-    .onChange(of: key) { _, _ in rendered = false; renderError = nil }
+    .onChange(of: key) { _ in rendered = false; renderError = nil }
     .task(id: key) {
       renderError = nil
-      await model.run(coin: coin, interval: interval, client: SDKManager.shared.client)
+      await model.run(coin: coin, interval: interval, client: sdkManager.client)
     }
   }
 }

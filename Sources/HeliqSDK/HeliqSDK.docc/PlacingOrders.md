@@ -1,6 +1,6 @@
 # Placing orders
 
-Use ``HeliqSDK/exchange`` for implemented typed exchange workflows. Your application owns wallet access through ``WalletServiceProtocol``.
+Use ``HeliqClient/exchange`` for implemented typed exchange workflows. Your application owns wallet access through ``WalletServiceProtocol``.
 
 Before submitting a production order, validate the typed request fields, handle failures explicitly, and use testnet for integration verification where appropriate.
 

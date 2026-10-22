@@ -7,6 +7,22 @@ import Testing
 struct InfoRepositoryWireTests {
   private let address = "0x1234567890123456789012345678901234567890"
 
+  @Test func getTimeUsesExchangeBookTimestamp() async throws {
+    let repo = repository(
+      responses: ["l2Book": #"{"coin":"BTC","time":1724361546645,"levels":[[],[]]}"#],
+      expected: ["l2Book": ["coin": .string("BTC")]]
+    )
+    let time = try await repo.getTime()
+    #expect(time == Date(timeIntervalSince1970: 1_724_361_546.645))
+  }
+
+  @Test func getTimePropagatesInvalidSnapshot() async {
+    let repo = repository(responses: ["l2Book": #"{"coin":"BTC","levels":[[],[]]}"#])
+    await #expect(throws: DecodingError.self) {
+      try await repo.getTime()
+    }
+  }
+
   private func repository(
     responses: [String: String],
     expected: [String: [String: JSONValue]] = [:],

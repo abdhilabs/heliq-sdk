@@ -15,7 +15,7 @@ struct HeliqSDKDemoApp: App {
 
 struct ContentView: View {
   @State private var tab = 0
-  private var manager: SDKManager { .shared }
+  @ObservedObject private var manager = SDKManager.shared
 
   var body: some View {
     TabView(selection: $tab) {
@@ -68,8 +68,9 @@ struct ContentView: View {
             }
           }
         }
+        .id(manager.isInitialized)
         .navigationTitle("API Explorer").accessibilityIdentifier("api_explorer")
-      }.id(manager.isInitialized).tabItem { Label("API Explorer", systemImage: "curlybraces") }.tag(
+      }.tabItem { Label("API Explorer", systemImage: "curlybraces") }.tag(
         2)
       NavigationStack { SettingsView() }
         .tabItem { Label("Settings", systemImage: "gearshape") }.tag(3)

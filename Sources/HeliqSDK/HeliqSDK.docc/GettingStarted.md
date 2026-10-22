@@ -1,19 +1,33 @@
 # Getting started
 
-## Initialize the SDK
+## Create a client
 
-Create a type that conforms to ``WalletServiceProtocol``. Its `address` is the account address. Implement `signL1` and `signUserSigned` for trading, or use the native `WalletService(keyManager:)`. Private key custody remains the application’s responsibility.
+Create an independent client for your selected environment. Read-only queries do not require a wallet.
 
 ```swift
-HeliqSDK.shared.initialize { builder in
-  builder
-    .environment(.mainnet)
-    .wallet(myWallet)
-    .logging(.disabled)
-}
+import HeliqSDK
+
+let client = try HeliqClient.Builder()
+  .environment(.testnet)
+  .build()
+
+let mids = try await client.info.getAllMids()
 ```
 
-``Builder`` defaults to ``HeliqEnvironment/mainnet`` and ``LogLevel/disabled``. It requires a wallet. Every later call to ``HeliqSDK/initialize(configure:)`` replaces the active container and logging configuration.
+``HeliqClient/Builder`` defaults to ``HeliqEnvironment/mainnet`` and ``LogLevel/disabled``. Each client retains its own environment and wallet. Logging is global; the most recently built client sets its level.
+
+## Add signing for trading
+
+Create a type that conforms to ``WalletServiceProtocol``. Its `address` is the account address. Implement `signL1` and `signUserSigned` for trading, or use the native `WalletService(keyManager:)`. Private-key custody remains the application's responsibility.
+
+```swift
+let tradingClient = try HeliqClient.Builder()
+  .environment(.testnet)
+  .wallet(myWallet)
+  .build()
+```
+
+Signed exchange calls fail explicitly when no wallet is configured.
 
 ## Choose an environment
 

@@ -15,7 +15,7 @@ struct WalletView: View {
   @State private var isSigning = false
   @State private var errorMessage: String?
   
-  private let sdkManager = SDKManager.shared
+  @ObservedObject private var sdkManager = SDKManager.shared
   
   var body: some View {
     List {

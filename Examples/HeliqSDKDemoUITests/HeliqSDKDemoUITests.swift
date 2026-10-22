@@ -376,7 +376,9 @@ final class HeliqSDKDemoUITests: XCTestCase {
 
   func testInfo_metadataAndBuilderFeeUseTypedSDKWithoutErrors() {
     openSettings()
-    app.buttons["initialize_sdk"].tap()
+    let initialize = app.buttons["initialize_sdk"]
+    reachTradingControl(initialize)
+    initialize.tap()
     XCTAssertTrue(app.alerts["SDK Initialized"].waitForExistence(timeout: 5))
     app.alerts.buttons["OK"].tap()
     goBack()
@@ -435,10 +437,8 @@ final class HeliqSDKDemoUITests: XCTestCase {
   func testTrading_opensExchangeSections() {
     openExample("Trading")
     XCTAssertTrue(app.navigationBars["Exchange API"].waitForExistence(timeout: 3))
-    // Either not-initialized banner or Orders section
-    let notInit = app.staticTexts.matching(NSPredicate(format: "label CONTAINS[c] 'not initialized'")).firstMatch
-    let placeOrder = app.staticTexts["Place Order"]
-    XCTAssertTrue(notInit.waitForExistence(timeout: 2) || placeOrder.waitForExistence(timeout: 2))
+    let asset = app.textFields["trade_PlaceOrderForm_asset"]
+    XCTAssertTrue(asset.waitForExistence(timeout: 5), app.debugDescription)
   }
 
   func testTrading_segmentedControl_hasAllTabs() {
@@ -500,6 +500,7 @@ final class HeliqSDKDemoUITests: XCTestCase {
   /// Selects the settings tab, keeping its navigation stack independent of API examples.
   private func openSettings() {
     app.tabBars.buttons["Settings"].tap()
+    XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
   }
 
   /// Opens an existing SDK example, initializing the default read-only environment if needed.

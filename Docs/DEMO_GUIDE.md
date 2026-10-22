@@ -43,8 +43,8 @@ Newer reads supersede older reads when a selection or connection changes.
 
 ## Compatibility and verification
 
-The SDK minimum stays iOS 16/macOS 13. The sample retains its existing iOS 17
-minimum because it already uses Observation. The interface supports system light
+The SDK minimum stays iOS 16/macOS 13. The sample also supports iOS 16, using
+`ObservableObject` and `@Published` for connection and chart state. The interface supports system light
 and dark appearance, Dynamic Type, VoiceOver labels, native controls, and keyboard
 dismissal. No wallet import flow or mainnet signing wallet was added.
 
