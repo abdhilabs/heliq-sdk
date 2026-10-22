@@ -16,6 +16,11 @@ struct CandleBuffer {
   let coin: String
   let interval: PerpsCandleInterval
 
+  init(coin: String, interval: PerpsCandleInterval) {
+    self.coin = coin
+    self.interval = interval
+  }
+
   /// Starts buffering during initial history or reconnect backfill without clearing the chart.
   mutating func beginHistory() {
     isReady = false

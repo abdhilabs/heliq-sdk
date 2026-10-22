@@ -262,9 +262,11 @@ Project documentation is gathered in [Docs](Docs/README.md).
 
 ### GitHub Actions
 
-Builds use standard GitHub-hosted `macos-15` ARM64 runners with Xcode 16.4;
-workflow linting, the public-symbol audit, Pages deployment, and draft release
-creation use `ubuntu-latest`. No self-hosted runner or personal Mac is required.
+SDK tests, documentation, and release validation use standard GitHub-hosted
+`macos-15` ARM64 runners with Xcode 16.4. iOS/demo builds use `macos-26` with
+Xcode 26.6 to avoid a Swift 6.1 compiler crash in LightweightCharts. Workflow
+linting, the public-symbol audit, Pages deployment, and draft release creation
+use `ubuntu-latest`. No self-hosted runner or personal Mac is required.
 Fork PRs can run validation without repository secrets or write permissions.
 
 CI runs on `master`/`develop` pushes and PRs, with manual dispatch available.
@@ -275,7 +277,7 @@ without booting a simulator. `swift test` builds the SDK itself; a separate
 duplicate build is unnecessary. No funded or live integration suite is run.
 
 SwiftPM build caches are keyed by toolchain, dependencies, and source content.
-iOS and documentation jobs share an Xcode dependency-download cache. Expensive
+Xcode dependency-download caches are separated by toolchain. Expensive
 macOS jobs wait for inexpensive lint/audit checks. Superseded CI and PR docs
 runs are cancelled, and documentation-only changes skip CI builds. Documentation
 builds run only when their inputs change. If enabling required status checks,

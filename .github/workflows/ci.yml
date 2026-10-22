@@ -82,8 +82,11 @@ jobs:
   ios:
     name: iOS SDK and Demo Build
     needs: lint
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
+    env:
+      # Swift 6.1 crashes compiling LightweightCharts; keep SDK compatibility tests on 16.4.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -101,7 +104,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/heliq-xcode-packages
-          key: ${{ runner.os }}-${{ runner.arch }}-xcode16.4-packages-${{ hashFiles('project.yml', 'Package.resolved') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-xcode26.6-packages-${{ hashFiles('project.yml', 'Package.resolved') }}
 
       - name: Build iOS SDK and unit tests
         run: |
