@@ -37,7 +37,7 @@ Read-only queries do not require a wallet. For signed actions, supply a ``Wallet
 ### Protocol coverage
 
 - <doc:TypedAndRawTransport>
-- ``HeliqSDK``
+- ``HeliqClient``
 - ``InfoRepository``
 - ``ExchangeRepository``
 - ``HyperliquidAPI``

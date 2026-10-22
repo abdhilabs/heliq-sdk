@@ -1,5 +1,5 @@
 {
-  "originHash" : "f2b755ec1170c3f54b9158df27d1112c14fc5b3e59be231346ff783ecb615d37",
+  "originHash" : "e472496e3574ad140ccd679e8a6a3fa31e420e91bf7ad7860e1e5db8469bb285",
   "pins" : [
     {
       "identity" : "bigint",
@@ -195,7 +195,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/argentlabs/web3.swift",
       "state" : {
-        "revision" : "080ad2d4e9eed79814beb02c71e2b214994616b3"
+        "revision" : "080ad2d4e9eed79814beb02c71e2b214994616b3",
+        "version" : "2.0.0"
       }
     },
     {

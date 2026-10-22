@@ -18,6 +18,8 @@ First public release of HeliqSDK.
   stack while resetting its connection-dependent content.
 - Fixed the documentation homepage redirect and updated examples to use
   `HeliqClient`.
+- Fixed the DocC sidebar index by removing circular module curation.
+- Pinned Web3 to its equivalent stable `2.0.0` tag so versioned SwiftPM installation works.
 - Fixed `getTime()` to use the exchange timestamp in a BTC order-book snapshot;
   Hyperliquid does not provide a `getTime` Info request.
 

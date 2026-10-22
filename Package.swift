@@ -14,7 +14,7 @@ let package = Package(
     )
   ],
   dependencies: [
-    .package(url: "https://github.com/argentlabs/web3.swift", revision: "080ad2d4e9eed79814beb02c71e2b214994616b3")
+    .package(url: "https://github.com/argentlabs/web3.swift", exact: "2.0.0")
   ],
   targets: [
     .target(

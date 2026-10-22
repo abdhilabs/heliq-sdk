@@ -38,6 +38,24 @@ jobs:
       - name: Validate tagged SDK
         run: swift test --configuration release --no-parallel --filter HeliqSDKTests
 
+      - name: Validate versioned package installation
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          consumer="$RUNNER_TEMP/heliq-consumer"
+          mkdir -p "$consumer"
+          cat > "$consumer/Package.swift" <<SWIFT
+          // swift-tools-version:6.1
+          import PackageDescription
+          let package = Package(
+            name: "ReleaseConsumer",
+            dependencies: [
+              .package(url: "https://github.com/abdhilabs/heliq-sdk.git", exact: "${RELEASE_TAG#v}")
+            ]
+          )
+          SWIFT
+          swift package --package-path "$consumer" resolve
+
   release:
     name: Create Release
     needs: validate
